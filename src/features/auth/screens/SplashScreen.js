@@ -14,6 +14,9 @@ import {colors, radius, spacing} from '../../../theme';
 
 import truckAnimation from '../../../assets/animation/Truck Icon Animation.json';
 
+// Adjust splash screen display duration here (in milliseconds)
+export const SPLASH_DURATION_MS = 2400;
+
 export default function SplashScreen({navigation}) {
   const contentOpacity = useSharedValue(0);
   const contentScale = useSharedValue(0.92);
@@ -40,13 +43,13 @@ export default function SplashScreen({navigation}) {
     );
 
     progressWidth.value = withTiming(100, {
-      duration: 2200,
+      duration: SPLASH_DURATION_MS - 200,
       easing: Easing.inOut(Easing.quad),
     });
 
     const timer = setTimeout(() => {
       navigation.replace(routes.welcome);
-    }, 2400);
+    }, SPLASH_DURATION_MS);
 
     return () => clearTimeout(timer);
   }, [contentOpacity, contentScale, lottieOpacity, navigation, progressWidth]);
@@ -83,7 +86,7 @@ export default function SplashScreen({navigation}) {
           </View>
         </View>
 
-        <Animated.View style={[styles.animationCard, animatedLottieStyle]}>
+        <Animated.View style={[styles.animationContainer, animatedLottieStyle]}>
           <LottieView
             source={truckAnimation}
             autoPlay
@@ -158,21 +161,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  animationCard: {
+  animationContainer: {
     width: 240,
     height: 240,
-    borderRadius: radius['2xl'],
-    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.text,
-    shadowOffset: {width: 0, height: 6},
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 3,
   },
   lottie: {
     width: '100%',
@@ -201,5 +194,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
 });
+
 
 
