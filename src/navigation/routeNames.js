@@ -1,0 +1,15 @@
+export const routes = {
+  auth: 'Auth',
+  app: 'App',
+  splash: 'Splash',
+  welcome: 'Welcome',
+  login: 'Login',
+  otp: 'Otp',
+  businessSetup: 'BusinessSetup',
+  mainTabs: 'MainTabs',
+  home: 'Home',
+  trips: 'Trips',
+  add: 'Add',
+  khata: 'Khata',
+  more: 'More',
+};
