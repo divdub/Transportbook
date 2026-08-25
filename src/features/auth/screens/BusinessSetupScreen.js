@@ -7,7 +7,7 @@ import {useAuthStore} from '../../../store/authStore';
 import {colors, radius, spacing, typography} from '../../../theme';
 
 export default function BusinessSetupScreen() {
-  const setSession = useAuthStore(state => state.setSession);
+  const completeOnboarding = useAuthStore(state => state.completeOnboarding);
 
   return (
     <AppScreen>
@@ -26,10 +26,7 @@ export default function BusinessSetupScreen() {
           placeholderTextColor={colors.textMuted}
           style={styles.input}
         />
-        <AppButton
-          title="Open Dashboard"
-          onPress={() => setSession({mode: 'development'})}
-        />
+        <AppButton title="Submit" onPress={() => completeOnboarding()} />
       </View>
     </AppScreen>
   );

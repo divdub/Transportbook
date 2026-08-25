@@ -25,7 +25,7 @@ export default function LoginScreen({navigation}) {
       <AppScreen>
         <AppHeader
           title="Enter mobile number"
-          subtitle="This screen captures only the mobile number until the backend defines the login contract."
+          //subtitle="This screen captures only the mobile number until the backend defines the login contract."
         />
         <AppCard style={styles.card}>
           <View style={styles.form}>
@@ -60,9 +60,9 @@ export default function LoginScreen({navigation}) {
               onPress={handleSubmit}
             />
           </View>
-          <AppText variant="caption" color="textMuted">
+          {/* <AppText variant="caption" color="textMuted">
             Mock action: no request is sent to the backend in this build.
-          </AppText>
+          </AppText> */}
         </AppCard>
       </AppScreen>
     </KeyboardAvoidingView>

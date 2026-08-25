@@ -1,6 +1,7 @@
 import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {StyleSheet, View} from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import HomeScreen from '../features/dashboard/screens/HomeScreen';
 import TripsScreen from '../features/trips/screens/TripsScreen';
 import AddScreen from '../features/quickActions/screens/AddScreen';
@@ -8,7 +9,7 @@ import KhataScreen from '../features/khata/screens/KhataScreen';
 import MoreScreen from '../features/more/screens/MoreScreen';
 import {routes} from './routeNames';
 import {colors, radius, spacing, typography} from '../theme';
-import {AppText} from '../components/common/AppText';
+import {quickActionSheetController} from '../features/quickActions/quickActionSheetController';
 
 const Tab = createBottomTabNavigator();
 
@@ -25,7 +26,18 @@ export default function MainTabNavigator() {
       })}>
       <Tab.Screen name={routes.home} component={HomeScreen} />
       <Tab.Screen name={routes.trips} component={TripsScreen} />
-      <Tab.Screen name={routes.add} component={AddScreen} />
+      <Tab.Screen
+        name={routes.add}
+        component={AddScreen}
+        listeners={{
+          tabPress: event => {
+            // "Add" is never a real screen — it opens the Quick Action
+            // sheet as an overlay and stays on the current tab.
+            event.preventDefault();
+            quickActionSheetController.open();
+          },
+        }}
+      />
       <Tab.Screen name={routes.khata} component={KhataScreen} />
       <Tab.Screen name={routes.more} component={MoreScreen} />
     </Tab.Navigator>
@@ -33,14 +45,30 @@ export default function MainTabNavigator() {
 }
 
 const tabIcons = {
-  [routes.home]: props => <TabGlyph label="H" {...props} />,
-  [routes.trips]: props => <TabGlyph label="T" {...props} />,
-  [routes.add]: props => <TabGlyph label="+" prominent {...props} />,
-  [routes.khata]: props => <TabGlyph label="K" {...props} />,
-  [routes.more]: props => <TabGlyph label="M" {...props} />,
+  [routes.home]: ({focused, color}) => (
+    <TabGlyph iconName={focused ? 'home' : 'home-outline'} color={color} focused={focused} />
+  ),
+  [routes.trips]: ({focused, color}) => (
+    <TabGlyph
+      iconName={focused ? 'truck' : 'truck-outline'}
+      color={color}
+      focused={focused}
+    />
+  ),
+  [routes.add]: () => <TabGlyph iconName="plus" prominent />,
+  [routes.khata]: ({focused, color}) => (
+    <TabGlyph
+      iconName={focused ? 'book-open-page-variant' : 'book-open-page-variant-outline'}
+      color={color}
+      focused={focused}
+    />
+  ),
+  [routes.more]: ({focused, color}) => (
+    <TabGlyph iconName="dots-grid" color={color} focused={focused} />
+  ),
 };
 
-function TabGlyph({label, focused, color, prominent}) {
+function TabGlyph({iconName, color, focused, prominent}) {
   return (
     <View
       style={[
@@ -48,15 +76,11 @@ function TabGlyph({label, focused, color, prominent}) {
         prominent && styles.prominentGlyph,
         focused && !prominent && styles.focusedGlyph,
       ]}>
-      <AppText
-        variant="label"
-        style={[
-          styles.glyphText,
-          {color: prominent ? colors.surface : color},
-          prominent && styles.prominentGlyphText,
-        ]}>
-        {label}
-      </AppText>
+      <Icon
+        name={iconName}
+        size={prominent ? 24 : 22}
+        color={prominent ? colors.surface : color}
+      />
     </View>
   );
 }
@@ -88,12 +112,5 @@ const styles = StyleSheet.create({
     height: 42,
     backgroundColor: colors.primary,
     marginTop: -spacing.lg,
-  },
-  glyphText: {
-    lineHeight: 18,
-  },
-  prominentGlyphText: {
-    fontSize: 24,
-    lineHeight: 28,
   },
 });

@@ -12,4 +12,7 @@ export const routes = {
   add: 'Add',
   khata: 'Khata',
   more: 'More',
+  partiesList: 'PartiesList',
+  addParty: 'AddParty',
+  selectState: 'SelectState',
 };

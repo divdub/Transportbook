@@ -15,7 +15,7 @@ import {colors, radius, spacing} from '../../../theme';
 import truckAnimation from '../../../assets/animation/Truck Icon Animation.json';
 
 // Adjust splash screen display duration here (in milliseconds)
-export const SPLASH_DURATION_MS = 2400;
+export const SPLASH_DURATION_MS = 3800;
 
 export default function SplashScreen({navigation}) {
   const contentOpacity = useSharedValue(0);

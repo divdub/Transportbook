@@ -13,6 +13,7 @@ export const mockCompleteOtpAuthentication = async ({mobileNumber}) => {
   return {
     mode: 'mock_authenticated_session',
     mobileNumber,
+    onboarded: false, // mock user is always fresh; Business Setup gates AppNavigator
   };
 };
 
