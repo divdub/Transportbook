@@ -47,7 +47,7 @@ export default function SelectStateScreen({navigation, route}) {
         data={filteredStates}
         keyExtractor={item => item}
         keyboardShouldPersistTaps="handled"
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ItemSeparatorComponent={StateSeparator}
         renderItem={({item}) => (
           <TouchableOpacity style={styles.row} onPress={() => handleSelect(item)}>
             <AppText variant="body">{item}</AppText>
@@ -64,6 +64,10 @@ export default function SelectStateScreen({navigation, route}) {
       />
     </AppScreen>
   );
+}
+
+function StateSeparator() {
+  return <View style={styles.separator} />;
 }
 
 const styles = StyleSheet.create({

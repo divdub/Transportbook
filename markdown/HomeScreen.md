@@ -91,17 +91,20 @@ function CurvedHeader({children}) {
 function TopBar({userName}) {
   return (
     <View style={styles.topBar}>
-      <View style={styles.profileGroup}>
-        <Icon name="account-circle" size={40} color={colors.onInk} />
-        <AppText variant="heading" color="onInk" style={styles.brandText}>
-          {userName}
-        </AppText>
-      </View>
-
-      <TouchableOpacity style={styles.notificationButton} accessibilityLabel="Notifications">
-        <Icon name="bell-outline" size={22} color={colors.onInk} />
+      <TouchableOpacity style={styles.iconCircle} accessibilityLabel="Notifications">
+        <Icon name="bell-outline" size={20} color={colors.text} />
         <View style={styles.notificationDot} />
       </TouchableOpacity>
+
+      <AppText variant="heading" color="onInk" style={styles.brandText}>
+        Hi, {userName}
+      </AppText>
+
+      <View style={styles.avatarPlaceholder}>
+        <AppText variant="label" color="onInk">
+          {userName?.charAt(0) ?? '?'}
+        </AppText>
+      </View>
     </View>
   );
 }
@@ -270,26 +273,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
-  
-  notificationDot: {
-    position: 'absolute',
-    top: 8,
-    right: 9,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.accentStrong,
-  },
-  brandText: {
-    fontSize: typography.sizes.md,
-  },
-    profileGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
- 
-  notificationButton: {
+  iconCircle: {
     width: 40,
     height: 40,
     borderRadius: radius.md + 10,
@@ -305,6 +289,17 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: colors.accentStrong,
+  },
+  brandText: {
+    fontSize: typography.sizes.md,
+  },
+  avatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md + 10,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statsCard: {
     flexDirection: 'row',

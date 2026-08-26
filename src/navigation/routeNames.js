@@ -15,4 +15,9 @@ export const routes = {
   partiesList: 'PartiesList',
   addParty: 'AddParty',
   selectState: 'SelectState',
+  tripsList: 'TripsList',
+  addTrip: 'AddTrip',
+  tripDetails: 'TripDetails',
+  tripProgress: 'TripProgress',
+  addLoad: 'AddLoad',
 };

@@ -4,6 +4,11 @@ import MainTabNavigator from './MainTabNavigator';
 import PartiesListScreen from '../features/parties/screens/PartiesListScreen';
 import AddPartyScreen from '../features/parties/screens/AddPartyScreen';
 import SelectStateScreen from '../features/parties/screens/SelectStateScreen';
+import TripsListScreen from '../features/trips/screens/TripsListScreen';
+import AddTripScreen from '../features/trips/screens/AddTripScreen';
+import TripDetailsScreen from '../features/trips/screens/TripDetailsScreen';
+import TripProgressScreen from '../features/trips/screens/TripProgressScreen';
+import AddLoadScreen from '../features/trips/screens/AddLoadScreen';
 import QuickActionSheet from '../features/quickActions/components/QuickActionSheet';
 import {quickActionSheetController} from '../features/quickActions/quickActionSheetController';
 import {routes} from './routeNames';
@@ -32,6 +37,31 @@ export default function AppNavigator() {
           name={routes.partiesList}
           component={PartiesListScreen}
           options={{title: 'Parties'}}
+        />
+        <Stack.Screen
+          name={routes.tripsList}
+          component={TripsListScreen}
+          options={{title: 'Trips'}}
+        />
+        <Stack.Screen
+          name={routes.addTrip}
+          component={AddTripScreen}
+          options={{headerShown: false}}
+        />
+        <Stack.Screen
+          name={routes.tripDetails}
+          component={TripDetailsScreen}
+          options={{headerShown: false}}
+        />
+        <Stack.Screen
+          name={routes.tripProgress}
+          component={TripProgressScreen}
+          options={{headerShown: false}}
+        />
+        <Stack.Screen
+          name={routes.addLoad}
+          component={AddLoadScreen}
+          options={{headerShown: false}}
         />
         <Stack.Screen
           name={routes.addParty}

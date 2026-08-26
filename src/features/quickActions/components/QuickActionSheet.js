@@ -5,13 +5,14 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppText} from '../../../components/common/AppText';
 import {colors, radius, spacing} from '../../../theme';
 import {quickActionSheetController} from '../quickActionSheetController';
+import {routes} from '../../../navigation/routeNames';
+import {navigate} from '../../../navigation/navigationRef';
 
-// TODO(navigation): wire each action once its create/add screen + route exists.
 const actions = [
-  {key: 'trip', label: 'New Trip', icon: 'truck-fast-outline'},
+  {key: 'trip', label: 'New Trip', icon: 'truck-fast-outline', route: routes.addTrip},
   {key: 'expense', label: 'Add Expense', icon: 'receipt-outline'},
   {key: 'payment', label: 'Add Payment', icon: 'cash-multiple'},
-  {key: 'party', label: 'Add Party', icon: 'account-group-outline'},
+  {key: 'party', label: 'Add Party', icon: 'account-group-outline', route: routes.addParty},
   {key: 'truck', label: 'Add Truck', icon: 'truck-plus-outline'},
   {key: 'driver', label: 'Add Driver', icon: 'account-plus-outline'},
 ];
@@ -50,7 +51,9 @@ const QuickActionSheet = forwardRef(function QuickActionSheet(_, forwardedRef) {
               style={styles.actionTile}
               onPress={() => {
                 quickActionSheetController.close();
-                // TODO: navigate to the relevant screen once it exists
+                if (action.route) {
+                  navigate(action.route);
+                }
               }}>
               <View style={styles.iconCircle}>
                 <Icon name={action.icon} size={24} color={colors.onInk} />

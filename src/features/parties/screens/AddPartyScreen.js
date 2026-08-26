@@ -44,7 +44,7 @@ export default function AddPartyScreen() {
 
   return (
     <AppScreen>
-      <AppHeader title="Add Party" subtitle="Add a customer or business partner" />
+     
 
       <View style={styles.form}>
         <FormField

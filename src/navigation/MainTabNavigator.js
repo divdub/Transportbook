@@ -3,7 +3,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {StyleSheet, View} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import HomeScreen from '../features/dashboard/screens/HomeScreen';
-import TripsScreen from '../features/trips/screens/TripsScreen';
+import TripsListScreen from '../features/trips/screens/TripsListScreen';
 import AddScreen from '../features/quickActions/screens/AddScreen';
 import KhataScreen from '../features/khata/screens/KhataScreen';
 import MoreScreen from '../features/more/screens/MoreScreen';
@@ -25,7 +25,7 @@ export default function MainTabNavigator() {
         tabBarIcon: tabIcons[route.name],
       })}>
       <Tab.Screen name={routes.home} component={HomeScreen} />
-      <Tab.Screen name={routes.trips} component={TripsScreen} />
+      <Tab.Screen name={routes.trips} component={TripsListScreen} />
       <Tab.Screen
         name={routes.add}
         component={AddScreen}

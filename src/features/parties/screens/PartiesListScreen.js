@@ -79,7 +79,7 @@ export default function PartiesListScreen() {
           keyExtractor={item => item.id}
           onRefresh={refetch}
           refreshing={isRefetching}
-          ItemSeparatorComponent={() => <View style={{height: spacing.sm}} />}
+          ItemSeparatorComponent={ItemSeparator}
           renderItem={({item}) => (
             <PartyListItem
               party={item}
@@ -94,6 +94,10 @@ export default function PartiesListScreen() {
       )}
     </AppScreen>
   );
+}
+
+function ItemSeparator() {
+  return <View style={{height: spacing.sm}} />;
 }
 
 const styles = StyleSheet.create({
