@@ -61,9 +61,10 @@ This is a **non-exhaustive** list of known-good components, never a closed allow
 ## Spacing Scale
 
 Declared from the existing `src/theme/spacing.js` tokens (provenance: codebase). The primary
-8-point spine is **4, 8, 16, 24, 32, 48**. Two legacy tokens (`md=12`, `xl=20`) break strict
-8-point but are pre-existing and wired throughout — **they are frozen as legacy, do not extend the
-pattern with new non-multiple-of-4 values.**
+8-point spine is **4, 8, 16, 24, 32, 48, 64** — the binding set for any spacing newly introduced
+in Phase 1. Three legacy tokens (`md=12`, `xl=20`, `4xl=40`) break strict 8-point but are
+pre-existing and wired throughout — **they are frozen as legacy, do not extend the pattern with new
+non-multiple-of-4 values, and do not treat 40 as a new precedent.**
 
 | Token | Value | Usage |
 |-------|-------|-------|
@@ -74,10 +75,11 @@ pattern with new non-multiple-of-4 values.**
 | xl | 20px (legacy) | OTP row / phone-row gaps; **legacy, frozen** |
 | 2xl | 24px | Layout gaps — header, card↔form, tab bar |
 | 3xl | 32px | Major section breaks, splash main gap |
-| 4xl | 40px | Page-level spacing, empty-state padding-y |
+| 4xl | 40px (legacy) | Page-level spacing, empty-state padding-y; **legacy, frozen** |
 | 5xl | 48px | Page-level spacing (splash top) |
 
-Exceptions: **none for Phase 1 beyond the noted legacy 12/20px tokens.** Touch targets: minimum
+Exceptions: **none for Phase 1 beyond the noted legacy 12/20/40px tokens.** All NEW spacing
+introduced in Phase 1 draws only from {4, 8, 16, 24, 32, 48, 64}. Touch targets: minimum
 interactive height is 48px (AppButton base) and 44–56px for OTP input boxes (width 48 / height 56
 in `OtpScreen.js`, 44×48 in `BusinessSetupScreen.js`). Back/icon buttons: 38px box (`AuthScreen.js`)
 — keep ≥ 38px with adequate hit padding.
@@ -90,20 +92,33 @@ Declared from the existing `src/theme/typography.js` sizes/weights and the `AppT
 (provenance: codebase). The contract binds typography through the **`AppText` variant roles** below
 — the executor writes against variants, not raw sizes/weights.
 
+**Binding set (what Phase 1 may draw from):** **4 sizes** — `28` (title), `22` (heading),
+`16` (body), `14` (label) — and **2 weights** — `400` (regular) + `600` (semibold) as the emphasis
+axis. `caption` (12px, 500) is **folded into `label` (14px)** for new Phase 1 screens.
+
 | Role (AppText variant) | Size | Weight | Line Height | Usage in Phase 1 |
 |------|------|--------|-------------|------------------|
-| title | 28 | bold (700) | 34 | Splash brand, screen titles (AppHeader), Business-setup heading |
-| heading | 22 | semibold (600) | 28 | Section headers, empty-state titles, card titles, role-selection labels |
-| body | 16 | regular (400) | 24 | Body copy, subtitles, hero copy, form help text |
-| label | 14 | medium (500) | 20 | Input labels, button labels, field values, table/row labels |
-| caption | 12 | medium (500) | 16 | Helper text, OTP hints, timestamps, badge labels, footer brand text |
+| title | 28 | **600** semibold* | 34 | Splash brand, screen titles (AppHeader), Business-setup heading |
+| heading | 22 | **600** semibold | 28 | Section headers, empty-state titles, card titles, role-selection labels |
+| body | 16 | **400** regular | 24 | Body copy, subtitles, hero copy, form help text |
+| label | 14 | **400** regular\* | 20 | Input labels, button labels, field values, table/row labels; **also absorbs the former `caption` role** (helper text, OTP hints, timestamps, badge labels, footer brand text) |
+
+\* ⚠️ **Legacy tie-outs (non-binding, documented for reference only):** the existing `AppText`
+theme maps `title`→700, `label`→500, and exposes `caption` (12px, 500). These theme values are the
+app's full type system and are **PRESERVED in `src/theme/typography.js`**; however, they are
+**non-binding legacy tokens.** Newly-authored Phase 1 screens must draw sizes from the binding set
+above and use only the **600/400** weight axis. Where the theme's `title`/`label` defaults resolve
+to 700/500, explicitly pass `weight={600}` (title/label-emphasis) or `weight={400}` (label/body) so
+Phase 1 output stays within the ≤2-weight contract. The former `caption` role is deprecated in
+favor of `label` for all new Phase 1 copy.
 
 **Line-height convention:** body 1.5 (24/16), title 1.21 (34/28), heading 1.27 (28/22). These are
 the pre-existing AppText values — do not override.
 
-**Weights used:** 400 (regular), 500 (medium), 600 (semibold), 700 (bold). The 600/700 semibold-bold
-pair is the emphasis axis; 400 is body. (Existing system has 4 weights — documented as-is, not
-reduced.)
+**Weights bound for Phase 1:** **400 (regular)** and **600 (semibold)**. The 600 emphasis axis is
+reserved for titles, headings, and emphasized labels; 400 is the default body/label weight. The
+full app theme still carries 500/700 legacy mappings, but Phase 1 screens must not introduce new
+dependencies on them.
 
 ---
 
@@ -188,23 +203,25 @@ These are gaps this contract adds — they do not exist in the current codebase:
 
 ## UI Considerations
 
-> State coverage per the ui-phase probe taxonomy. Copy for empty/error/offline lives in the
-> Copywriting Contract above and is referenced (not restated) here. Loading is a Phase 1 hard
-> requirement (DATA-02) — the shared adapter must expose loading consistently.
+> State coverage per the ui-phase probe taxonomy (bytecode `ui-consideration-probe.cjs`,
+> verified 2026-08-30). Copy for empty/error/offline lives in the Copywriting Contract above and is
+> referenced (not restated) here. Loading is a Phase 1 hard requirement (DATA-02) — the shared
+> adapter must expose loading consistently.
 
-Applicable state considerations resolved: 10 covered, 1 backstop, 0 unresolved.
+Probe result: 31 applicable considerations across 10 surfaces → 23 covered (explicit),
+6 dismissed (reasoned), 2 backstop, 0 unresolved.
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
-| loading | login mobile form, OTP form, password form, business-setup submit | ✅ covered | Button label swaps to "Sending... / Verifying... / Logging in..." while `isSubmitting`; AppButton `disabled` + 0.48 opacity; logout confirms server round-trip. |
 | loading | app boot / session restore | ✅ covered | `RootNavigator` shows centered `ActivityIndicator` tinted `colors.primary` while `isBootstrapping`. |
-| empty | post-login data surfaces touched by Phase 1 | ✅ covered | Rendered via `EmptyState` component with the documented "Nothing here yet" title + retry/refresh body. |
-| error | login / OTP / password / business-setup | ✅ covered | Field-level `danger` message under input; action re-enabled on retry. |
-| error | network / server (adapter) | ✅ covered | Full-screen surface copy per Copywriting Contract; **Retry** re-invokes action. |
-| partial | business-setup form | ✅ covered | OTP reveal is gated: mobile field editable until verified; "Complete Signup" disabled until `mobileVerified` — matches existing pattern. |
-| zero-one-many | role selection (4 roles) | ✅ covered | Role list renders consistently at 1 vs 4 roles; each `RoleBadge` a constant width chip. |
-| overflow | offline banner / session-expiry body | 🧪 backstop | Long copy wraps (maxWidth on subtitle pattern); held-out visual check that banner text reflows on narrow screens. |
-| long-text | login/OTP error + help copy | ✅ covered | Wrap with `textAlign` center where full-width; `caption`/`label` line-heights per typography table. |
+| loading | login mobile form, OTP form, password form, business-setup submit, logout round-trip | ✅ covered | CTA label swaps ("Sending... / Verifying... / Logging in... / Logging out...") while `isSubmitting`; AppButton `disabled` + 0.48 opacity; logout confirm dialog disables its buttons during the server round-trip. |
+| loading / error | welcome screen | ✅ dismissed | Static screen — no async load or submit on it; CTA navigation defers all loading/error states to the login step. |
+| empty | forms (E3–E6) | ✅ dismissed | Forms are not data lists; the unfilled state is already the empty affordance (placeholders + disabled CTA). No absent-data render applies. |
+| error | login / OTP / password / business-setup; adapter network/server; logout failure | ✅ covered | Field-level `danger` message under input; network/server full-surface copy + **Retry** per Copywriting Contract; failed logout keeps the dialog open with error copy and a retry affordance. |
+| partial | OTP gating (login + business setup) | ✅ covered | "Send OTP" disabled until 10 digits; "Verify & Continue" disabled until 6 digits; "Complete Signup" disabled until `mobileVerified`; OTP boxes get focus/filled tints only as digits are entered. |
+| zero-one-many | role selection / RoleBadge (4 roles) | ✅ covered | Constant-width role chip renders consistently at 1 vs 4 roles; "Petrol Pump" label wraps within the chip. |
+| overflow | offline banner / session-expiry banner | 🧪 backstop | Subtitle uses the maxWidth wrap pattern; held-out visual check that banner text reflows on narrow screens. |
+| long-text | form errors + help copy, dialog body, welcome hero | ✅ covered | Wrap full-width (forms/dialog) or per width; `label`/`body` line-heights per typography table; no fixed-height text blocks. |
 | populated | login + business setup happy path | ✅ covered | Single required field per step (mobile → OTP → [password]) keeps each screen short; standard 48px buttons. |
 
 ---
@@ -232,4 +249,4 @@ already installed in the project. Registry vetting gate: **not applicable.**
 - [ ] Dimension 6 Registry Safety: PASS
 - [ ] Dimension 7 Inventory Provenance: PASS
 
-**Approval:** pending
+**Approval:** ✅ approved (all 7 dimensions PASS, verified 2026-08-30; UI Considerations probe written back)
