@@ -1,0 +1,163 @@
+import {mockTrucks, mockVehicleTypes} from './trucks.mock';
+import {apiClient} from '../../services/api/client';
+
+let inMemoryTrucks = [...mockTrucks];
+
+export const trucksApi = {
+  async getTrucks(params = {}) {
+    try {
+      const response = await apiClient.get('/dispatch_report.php', {
+        params: {
+          token: 'GURU',
+          tag: 'm_vehicle',
+          user_id: params.userId || '1',
+          user_type: params.userType || '4',
+        },
+      });
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        // Map PHP backend m_vehicle array to frontend shape
+        return response.data.data.map(item => ({
+          id: String(item.vehicle_id),
+          vehicleNumber: item.vehicle_no,
+          vehicleTypeId: String(item.vehicle_type_id || '1'),
+          vehicleTypeName: item.vehicle_type_name || 'Commercial Truck',
+          ownership: item.owner_id ? 'own' : 'market',
+          ownerName: item.owner_name || 'Vehicle Owner',
+          ownerPhone: item.owner_phone || '',
+          driverId: item.driver_id ? String(item.driver_id) : '',
+          driverName: item.driver_name || 'Unassigned',
+          driverPhone: item.driver_phone || '',
+          status: item.is_active === '0' ? 'maintenance' : 'available',
+          activeTrip: null,
+          documents: [],
+          recentTrips: [],
+          maintenanceHistory: [],
+          performance: {
+            totalTrips: 0,
+            totalRevenue: 0,
+            dieselExpenses: 0,
+            maintenanceExpenses: 0,
+            netProfit: 0,
+          },
+        }));
+      }
+    } catch {
+      // Backend not running or offline, return memory store
+    }
+    return inMemoryTrucks;
+  },
+
+  async getTruckById(truckId) {
+    const truck = inMemoryTrucks.find(t => t.id === truckId || t.vehicleNumber === truckId);
+    if (!truck) {
+      throw new Error(`Truck with ID ${truckId} not found`);
+    }
+    return truck;
+  },
+
+  async createTruck(payload) {
+    const vehicleTypeObj =
+      mockVehicleTypes.find(vt => vt.id === payload.vehicleType || vt.name === payload.vehicleType) ||
+      mockVehicleTypes[0];
+
+    const newTruck = {
+      id: `TRK-${Date.now().toString().slice(-4)}`,
+      vehicleNumber: payload.vehicleNumber.trim().toUpperCase(),
+      vehicleTypeId: vehicleTypeObj.id,
+      vehicleTypeName: vehicleTypeObj.name,
+      ownership: payload.ownership || 'own',
+      ownerName: payload.ownerName || 'My Transport Fleet',
+      ownerPhone: payload.ownerPhone || '',
+      driverId: payload.driverName ? `DRV-${Date.now().toString().slice(-2)}` : '',
+      driverName: payload.driverName || 'Unassigned',
+      driverPhone: payload.driverPhone || '',
+      status: 'available',
+      activeTrip: null,
+      specs: {
+        chassisNumber: payload.chassisNumber || 'MAT624128N2E00000',
+        engineNumber: payload.engineNumber || '497TC92CY000000',
+        modelYear: new Date().getFullYear().toString(),
+        fuelType: 'Diesel',
+        odometerKm: '0 km',
+      },
+      documents: [
+        {
+          id: `doc-${Date.now()}-1`,
+          title: 'Insurance Policy',
+          type: 'insurance',
+          number: 'POL-NEW-01',
+          expiryDate: payload.insuranceExpiry || '2027-01-01',
+          daysLeft: 120,
+          status: 'valid',
+        },
+        {
+          id: `doc-${Date.now()}-2`,
+          title: 'Fitness Certificate',
+          type: 'fitness',
+          number: 'FIT-NEW-01',
+          expiryDate: payload.fitnessExpiry || '2027-01-01',
+          daysLeft: 120,
+          status: 'valid',
+        },
+        {
+          id: `doc-${Date.now()}-3`,
+          title: 'National Permit',
+          type: 'permit',
+          number: 'NP-NEW-01',
+          expiryDate: payload.permitExpiry || '2027-01-01',
+          daysLeft: 120,
+          status: 'valid',
+        },
+        {
+          id: `doc-${Date.now()}-4`,
+          title: 'PUC / Pollution',
+          type: 'puc',
+          number: 'PUC-NEW-01',
+          expiryDate: payload.pucExpiry || '2026-12-01',
+          daysLeft: 90,
+          status: 'valid',
+        },
+      ],
+      recentTrips: [],
+      maintenanceHistory: [],
+      performance: {
+        totalTrips: 0,
+        totalRevenue: 0,
+        dieselExpenses: 0,
+        maintenanceExpenses: 0,
+        netProfit: 0,
+      },
+    };
+
+    inMemoryTrucks = [newTruck, ...inMemoryTrucks];
+    return newTruck;
+  },
+
+  async addMaintenance(truckId, payload) {
+    const truck = inMemoryTrucks.find(t => t.id === truckId);
+    if (!truck) {
+      throw new Error(`Truck ${truckId} not found`);
+    }
+
+    const newRecord = {
+      id: `maint-${Date.now()}`,
+      category: payload.category,
+      serviceName: payload.serviceName,
+      workshop: payload.workshopName || 'Workshop',
+      date: payload.serviceDate || new Date().toLocaleDateString('en-GB'),
+      odometerKm: payload.odometerKm ? `${payload.odometerKm} km` : 'N/A',
+      cost: Number(payload.amount) || 0,
+      notes: payload.notes || '',
+    };
+
+    truck.maintenanceHistory = [newRecord, ...(truck.maintenanceHistory || [])];
+    truck.performance.maintenanceExpenses += newRecord.cost;
+    truck.performance.netProfit -= newRecord.cost;
+
+    return newRecord;
+  },
+
+  async getVehicleTypes() {
+    return mockVehicleTypes;
+  },
+};
