@@ -104,11 +104,15 @@ v1 for the first milestone — full PRD scope for the transport app delivered ag
 
 ## Traceability
 
-Filled by roadmap — each requirement maps to exactly one phase.
+Each v1 requirement maps to exactly one phase (set 2026-08-30 by roadmap).
 
 | Phase | Requirement IDs |
 |-------|-----------------|
-| (pending) | (pending) |
+| Phase 1: Integration & Data Foundation | AUTH-01..07, DATA-01..06 |
+| Phase 2: Trip Lifecycle | TRIP-01..07 |
+| Phase 3: Master Data | TRK-01..06, PRT-01..04, DRV-01..04 |
+| Phase 4: Financials | SPL-01..03, EXP-01..04, KHATA-01..03 |
+| Phase 5: Documents & Reports | DOC-01..03, RPT-01..04 |
 
 ---
 *Last updated: 2026-08-30 after initialization*
