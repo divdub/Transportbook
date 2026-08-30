@@ -3,7 +3,13 @@ import {Pressable, StyleSheet} from 'react-native';
 import {colors, radius, spacing, typography} from '../../theme';
 import {AppText} from './AppText';
 
-export function AppButton({title, onPress, variant = 'primary', disabled}) {
+export function AppButton({
+  title,
+  onPress,
+  variant = 'primary',
+  disabled,
+  style,
+}) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -14,6 +20,7 @@ export function AppButton({title, onPress, variant = 'primary', disabled}) {
         styles[variant],
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed,
+        style,
       ]}>
       <AppText
         variant="label"

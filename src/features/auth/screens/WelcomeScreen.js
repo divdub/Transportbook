@@ -52,7 +52,7 @@ export default function WelcomeScreen({navigation}) {
       <AppCard style={styles.card}>
         <AppButton
           title="Continue with Mobile"
-          onPress={() => navigation.navigate(routes.login)}
+          onPress={() => navigation.navigate(routes.authForm)}
         />
       </AppCard>
     </AppScreen>

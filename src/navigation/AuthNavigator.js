@@ -2,8 +2,7 @@ import React from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import SplashScreen from '../features/auth/screens/SplashScreen';
 import WelcomeScreen from '../features/auth/screens/WelcomeScreen';
-import LoginScreen from '../features/auth/screens/LoginScreen';
-import OtpScreen from '../features/auth/screens/OtpScreen';
+import AuthScreen from '../features/auth/screens/AuthScreen';
 import {routes} from './routeNames';
 import {colors} from '../theme';
 
@@ -19,26 +18,9 @@ export default function AuthNavigator() {
         headerTitleStyle: {color: colors.text},
         contentStyle: {backgroundColor: colors.background},
       }}>
-      <Stack.Screen
-        name={routes.splash}
-        component={SplashScreen}
-        options={{headerShown: false}}
-      />
-      <Stack.Screen
-        name={routes.welcome}
-        component={WelcomeScreen}
-        options={{headerShown: false}}
-      />
-      <Stack.Screen
-        name={routes.login}
-        component={LoginScreen}
-        options={{title: 'Mobile Login'}}
-      />
-      <Stack.Screen
-        name={routes.otp}
-        component={OtpScreen}
-        options={{title: 'Verify OTP'}}
-      />
+      <Stack.Screen name={routes.splash} component={SplashScreen} options={{headerShown: false}} />
+      <Stack.Screen name={routes.welcome} component={WelcomeScreen} options={{headerShown: false}} />
+      <Stack.Screen name={routes.authForm} component={AuthScreen} options={{headerShown: false}} />
     </Stack.Navigator>
   );
 }

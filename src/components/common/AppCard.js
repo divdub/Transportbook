@@ -12,7 +12,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    padding: spacing.lg,
+    //padding: spacing.lg,
     ...shadows.card,
   },
 });

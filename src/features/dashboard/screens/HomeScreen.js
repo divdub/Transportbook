@@ -270,16 +270,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
-  
-  notificationDot: {
-    position: 'absolute',
-    top: 8,
-    right: 9,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.accentStrong,
-  },
   brandText: {
     fontSize: typography.sizes.md,
   },
