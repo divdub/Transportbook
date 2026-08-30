@@ -12,7 +12,30 @@ export const addTripSchema = z.object({
     .or(z.literal('')),
   origin: z.string().trim().optional().or(z.literal('')),
   destination: z.string().trim().optional().or(z.literal('')),
-  billingType: z.enum(['Fixed', 'Per Tonne', 'Per KG', 'More']).default('Fixed'),
+  billingType: z
+    .enum([
+      'Fixed',
+      'Per Tonne',
+      'Per KG',
+      'Per Km',
+      'Per Trip',
+      'Per Day',
+      'Per Hour',
+      'Per Litre',
+      'Per Bag',
+      'Per Box',
+    ])
+    .default('Fixed'),
+  billingRate: z
+    .string()
+    .trim()
+    .optional()
+    .refine(val => !val || /^\d+(\.\d{1,2})?$/.test(val), 'Enter a valid rate'),
+  billingQuantity: z
+    .string()
+    .trim()
+    .optional()
+    .refine(val => !val || /^\d+(\.\d{1,2})?$/.test(val), 'Enter a valid quantity'),
   freightAmount: z
     .string()
     .trim()

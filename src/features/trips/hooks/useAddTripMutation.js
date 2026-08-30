@@ -8,6 +8,7 @@ export function useAddTripMutation() {
     mutationFn: mockCreateTrip,
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['trips']});
+      queryClient.invalidateQueries({queryKey: ['dashboard']});
     },
   });
 }

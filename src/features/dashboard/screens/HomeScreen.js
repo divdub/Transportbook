@@ -9,9 +9,9 @@ import {ModuleTile} from '../components/ModuleTile';
 import {businessModules} from '../constants/businessModules';
 import {routes} from '../../../navigation/routeNames';
 import {colors, radius, spacing, typography} from '../../../theme';
+import {useDashboardQuery} from '../hooks/useDashboardQuery';
 
-// TODO(backend): replace with TanStack Query once dashboard API contract exists.
-const mockDashboard = {
+const defaultDashboard = {
   user: {name: 'Rajesh'},
   overview: {
     activeTrips: 12,
@@ -40,7 +40,9 @@ const quickActions = [
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const {user, overview, fleetPerformance, topDriver, serviceAlert} = mockDashboard;
+  const {data: dashboardData} = useDashboardQuery();
+  const dashboard = dashboardData || defaultDashboard;
+  const {user, overview, fleetPerformance, topDriver, serviceAlert} = dashboard;
 
   const handleQuickAction = key => {
     if (key === 'party') {

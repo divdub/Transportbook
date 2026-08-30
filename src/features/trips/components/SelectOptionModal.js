@@ -22,6 +22,7 @@ export function SelectOptionModal({
   onClose,
   allowCustom = true,
   placeholder = 'Search...',
+  topActions = [],
 }) {
   const [search, setSearch] = useState('');
 
@@ -93,6 +94,27 @@ export function SelectOptionModal({
               ) : null}
             </View>
           </View>
+
+          {/* Top Actions (e.g. Add Party, Choose from Contacts) */}
+          {topActions && topActions.length > 0 ? (
+            <View style={styles.topActionsContainer}>
+              {topActions.map((act, i) => (
+                <TouchableOpacity
+                  key={`top-action-${i}`}
+                  style={styles.topActionButton}
+                  onPress={() => {
+                    onClose();
+                    act.onPress();
+                  }}
+                  activeOpacity={0.7}>
+                  <Icon name={act.icon || 'plus-circle'} size={18} color={colors.primary} />
+                  <AppText variant="label" style={styles.topActionText}>
+                    {act.label}
+                  </AppText>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
 
           {/* Custom entry if not in options */}
           {allowCustom && search.trim().length > 0 && !isExactMatch ? (
@@ -194,7 +216,33 @@ const styles = StyleSheet.create({
     width: 24,
   },
   searchContainer: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  topActionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  topActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  topActionText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 13,
   },
   searchField: {
     flexDirection: 'row',

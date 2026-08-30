@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,20 +12,52 @@ import {useNavigation} from '@react-navigation/native';
 import {Controller, useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+
 import {AppButton} from '../../../components/common/AppButton';
 import {AppScreen} from '../../../components/common/AppScreen';
 import {AppText} from '../../../components/common/AppText';
 import {SelectOptionModal} from '../components/SelectOptionModal';
+import {ContactsPickerModal} from '../components/ContactsPickerModal';
+import {StateCityPickerModal} from '../components/StateCityPickerModal';
+import {DatePickerModal} from '../components/DatePickerModal';
+import {QuickAddModal} from '../components/QuickAddModal';
 import {AddMoreDetailsSheet} from '../sheets/AddMoreDetailsSheet';
 import {useAddTripMutation} from '../hooks/useAddTripMutation';
 import {usePartiesQuery} from '../../parties/hooks/usePartiesQuery';
+import {useTrucksQuery} from '../../trucks/hooks/useTrucksQuery';
 import {addTripSchema} from '../tripsValidation';
 import {routes} from '../../../navigation/routeNames';
 import {colors, radius, spacing} from '../../../theme';
 
-const BILLING_TYPES = ['Fixed', 'Per Tonne', 'Per KG', 'More'];
+const PRIMARY_BILLING_TYPES = ['Fixed', 'Per Tonne', 'Per KG', 'More'];
 
-const COMMON_TRUCKS = [
+const ALL_BILLING_TYPES = [
+  'Fixed',
+  'Per Tonne',
+  'Per KG',
+  'Per Km',
+  'Per Trip',
+  'Per Day',
+  'Per Hour',
+  'Per Litre',
+  'Per Bag',
+  'Per Box',
+];
+
+const BILLING_CONFIG = {
+  Fixed: {rateLabel: '', qtyLabel: '', unitName: ''},
+  'Per Tonne': {rateLabel: 'Rate per Tonne (₹)', qtyLabel: 'Total Tonnes', unitName: 'Tonne'},
+  'Per KG': {rateLabel: 'Rate per KG (₹)', qtyLabel: 'Total KG', unitName: 'KG'},
+  'Per Km': {rateLabel: 'Rate per Km (₹)', qtyLabel: 'Total Km', unitName: 'Km'},
+  'Per Trip': {rateLabel: 'Rate per Trip (₹)', qtyLabel: 'Total Trips', unitName: 'Trip'},
+  'Per Day': {rateLabel: 'Rate per Day (₹)', qtyLabel: 'Total Days', unitName: 'Day'},
+  'Per Hour': {rateLabel: 'Rate per Hour (₹)', qtyLabel: 'Total Hours', unitName: 'Hour'},
+  'Per Litre': {rateLabel: 'Rate per Litre (₹)', qtyLabel: 'Total Litres', unitName: 'Litre'},
+  'Per Bag': {rateLabel: 'Rate per Bag (₹)', qtyLabel: 'Total Bags', unitName: 'Bag'},
+  'Per Box': {rateLabel: 'Rate per Box (₹)', qtyLabel: 'Total Boxes', unitName: 'Box'},
+};
+
+const DEFAULT_TRUCKS = [
   'KA 12 DS 3747',
   'MH 04 AB 8821',
   'GJ 01 XX 4410',
@@ -36,33 +68,14 @@ const COMMON_TRUCKS = [
   'TN 02 BB 7744',
 ];
 
-const COMMON_DRIVERS = [
-  'Ramesh Kumar',
-  'Suresh Patil',
-  'Vikram Singh',
-  'Manoj Yadav',
-  'Deepak Sharma',
-  'Rajesh Verma',
-  'Unassigned',
-];
-
-const COMMON_CITIES = [
-  'Bangalore',
-  'Hyderabad',
-  'Mumbai',
-  'Delhi NCR',
-  'Pune',
-  'Chennai',
-  'Ahmedabad',
-  'Kolkata',
-  'Jaipur',
-  'Indore',
-  'Surat',
-  'Nagpur',
-  'Lucknow',
-  'Chandigarh',
-  'Visakhapatnam',
-  'Coimbatore',
+const DEFAULT_DRIVERS = [
+  {name: 'Ramesh Kumar', phone: '9876543210'},
+  {name: 'Suresh Patil', phone: '9822011223'},
+  {name: 'Vikram Singh', phone: '9711223344'},
+  {name: 'Manoj Yadav', phone: '9988776655'},
+  {name: 'Deepak Sharma', phone: '9811224466'},
+  {name: 'Rajesh Verma', phone: '9845012345'},
+  {name: 'Unassigned', phone: ''},
 ];
 
 function getFormattedToday() {
@@ -74,24 +87,27 @@ function getFormattedToday() {
 export default function AddTripScreen() {
   const navigation = useNavigation();
   const {mutateAsync: createTrip, isPending} = useAddTripMutation();
-  const {data: parties} = usePartiesQuery();
+  const {data: apiParties} = usePartiesQuery();
+  const {data: apiTrucks} = useTrucksQuery();
 
+  // Custom added items in state
+  const [customParties, setCustomParties] = useState([]);
+  const [customTrucks, setCustomTrucks] = useState([]);
+  const [customDrivers, setCustomDrivers] = useState([]);
+
+  // Modals visibility state
   const [moreDetailsVisible, setMoreDetailsVisible] = useState(false);
-  const [activePicker, setActivePicker] = useState(null); // 'party' | 'truck' | 'driver' | 'origin' | 'destination' | null
+  const [activePicker, setActivePicker] = useState(null); // 'party' | 'truck' | 'driver' | 'moreBilling' | null
+  const [activeLocationPicker, setActiveLocationPicker] = useState(null); // 'origin' | 'destination' | null
+  const [contactsModalVisible, setContactsModalVisible] = useState(false);
+  const [contactsTarget, setContactsTarget] = useState('party'); // 'party' | 'driver'
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [quickAddModalVisible, setQuickAddModalVisible] = useState(false);
+  const [quickAddType, setQuickAddType] = useState('party'); // 'party' | 'truck' | 'driver'
+
   const [sendSmsToParty, setSendSmsToParty] = useState(false);
 
-  const partyOptions = useMemo(() => {
-    if (!parties || parties.length === 0) {
-      return ['Sainy Logistics', 'Tata Steel Ltd', 'Reliance Retail', 'Ultratech Cement', 'Ambuja Logistics'];
-    }
-    return parties.map(p => ({
-      name: p.name,
-      label: p.name,
-      sublabel: p.category,
-      value: p.name,
-    }));
-  }, [parties]);
-
+  // Form setup
   const {
     control,
     handleSubmit,
@@ -102,13 +118,15 @@ export default function AddTripScreen() {
     resolver: zodResolver(addTripSchema),
     mode: 'onChange',
     defaultValues: {
-      partyName: 'Sainy',
+      partyName: 'Sainy Logistics',
       truckNumber: 'KA12DS3747',
       driverName: '',
       driverPhone: '',
       origin: '',
       destination: '',
       billingType: 'Fixed',
+      billingRate: '',
+      billingQuantity: '',
       freightAmount: '',
       tripStartDate: getFormattedToday(),
       lrNumber: '',
@@ -120,6 +138,64 @@ export default function AddTripScreen() {
 
   const formValues = watch();
 
+  // Combined Party Options
+  const partyOptions = useMemo(() => {
+    const defaultList = [
+      {name: 'Sainy Logistics', category: 'Transport Partner'},
+      {name: 'Tata Steel Ltd', category: 'Goods Supplier'},
+      {name: 'Reliance Retail', category: 'FMCG Partner'},
+      {name: 'Ultratech Cement', category: 'Manufacturer'},
+      {name: 'Ambuja Logistics', category: 'Partner'},
+    ];
+    const fromApi = apiParties && apiParties.length > 0 ? apiParties : defaultList;
+    const combined = [...customParties, ...fromApi];
+    // Remove duplicates
+    const seen = new Set();
+    return combined.filter(p => {
+      if (seen.has(p.name)) return false;
+      seen.add(p.name);
+      return true;
+    }).map(p => ({
+      name: p.name,
+      label: p.name,
+      sublabel: p.category || p.phoneNumber || '',
+      value: p.name,
+    }));
+  }, [apiParties, customParties]);
+
+  // Combined Truck Options
+  const truckOptions = useMemo(() => {
+    const fromApi = apiTrucks && apiTrucks.length > 0
+      ? apiTrucks.map(t => t.vehicleNumber)
+      : DEFAULT_TRUCKS;
+    const combined = [...customTrucks, ...fromApi];
+    const seen = new Set();
+    return combined.filter(t => {
+      const val = typeof t === 'string' ? t : t.vehicleNumber;
+      if (seen.has(val)) return false;
+      seen.add(val);
+      return true;
+    });
+  }, [apiTrucks, customTrucks]);
+
+  // Combined Driver Options
+  const driverOptions = useMemo(() => {
+    const combined = [...customDrivers, ...DEFAULT_DRIVERS];
+    const seen = new Set();
+    return combined.filter(d => {
+      if (seen.has(d.name)) return false;
+      seen.add(d.name);
+      return true;
+    }).map(d => ({
+      name: d.name,
+      label: d.name,
+      sublabel: d.phone ? `Phone: ${d.phone}` : '',
+      value: d.name,
+      phone: d.phone || '',
+    }));
+  }, [customDrivers]);
+
+  // Form Handlers
   const onSubmit = async values => {
     const created = await createTrip(values);
     if (created && created.id) {
@@ -135,6 +211,105 @@ export default function AddTripScreen() {
     setValue('startKm', details.startKm);
     setValue('note', details.note);
   };
+
+  // Live Auto-Calculation for Rate * Quantity
+  const calculateFreight = useCallback((rateStr, qtyStr) => {
+    const rate = parseFloat(rateStr);
+    const qty = parseFloat(qtyStr);
+    if (!isNaN(rate) && !isNaN(qty) && rate >= 0 && qty >= 0) {
+      const total = rate * qty;
+      const formatted = Number.isInteger(total) ? total.toString() : total.toFixed(2);
+      setValue('freightAmount', formatted, {shouldValidate: true});
+    }
+  }, [setValue]);
+
+  const handleRateChange = val => {
+    setValue('billingRate', val, {shouldValidate: true});
+    calculateFreight(val, formValues.billingQuantity);
+  };
+
+  const handleQuantityChange = val => {
+    setValue('billingQuantity', val, {shouldValidate: true});
+    calculateFreight(formValues.billingRate, val);
+  };
+
+  // Contacts picker selection handler
+  const handleSelectContact = contact => {
+    if (contactsTarget === 'party') {
+      setValue('partyName', contact.name, {shouldValidate: true});
+    } else if (contactsTarget === 'driver') {
+      setValue('driverName', contact.name, {shouldValidate: true});
+      setValue('driverPhone', contact.phone, {shouldValidate: true});
+    }
+  };
+
+  // Quick Add handler
+  const handleQuickAdd = addedData => {
+    if (quickAddType === 'party') {
+      setCustomParties(prev => [addedData, ...prev]);
+      setValue('partyName', addedData.name, {shouldValidate: true});
+    } else if (quickAddType === 'truck') {
+      setCustomTrucks(prev => [addedData.vehicleNumber, ...prev]);
+      setValue('truckNumber', addedData.vehicleNumber, {shouldValidate: true});
+    } else if (quickAddType === 'driver') {
+      setCustomDrivers(prev => [addedData, ...prev]);
+      setValue('driverName', addedData.name, {shouldValidate: true});
+      if (addedData.phone) setValue('driverPhone', addedData.phone, {shouldValidate: true});
+    }
+  };
+
+  // Top action creators for pickers
+  const partyTopActions = useMemo(() => [
+    {
+      label: '+ Add Party',
+      icon: 'account-plus-outline',
+      onPress: () => {
+        setQuickAddType('party');
+        setQuickAddModalVisible(true);
+      },
+    },
+    {
+      label: 'Choose from Contacts',
+      icon: 'account-box-outline',
+      onPress: () => {
+        setContactsTarget('party');
+        setContactsModalVisible(true);
+      },
+    },
+  ], []);
+
+  const truckTopActions = useMemo(() => [
+    {
+      label: '+ Add Truck',
+      icon: 'truck-plus-outline',
+      onPress: () => {
+        setQuickAddType('truck');
+        setQuickAddModalVisible(true);
+      },
+    },
+  ], []);
+
+  const driverTopActions = useMemo(() => [
+    {
+      label: '+ Add Driver',
+      icon: 'account-cog-outline',
+      onPress: () => {
+        setQuickAddType('driver');
+        setQuickAddModalVisible(true);
+      },
+    },
+    {
+      label: 'Choose from Contacts',
+      icon: 'account-box-outline',
+      onPress: () => {
+        setContactsTarget('driver');
+        setContactsModalVisible(true);
+      },
+    },
+  ], []);
+
+  const currentBillingConfig = BILLING_CONFIG[formValues.billingType] || BILLING_CONFIG.Fixed;
+  const isFixedBilling = formValues.billingType === 'Fixed';
 
   return (
     <KeyboardAvoidingView
@@ -249,7 +424,7 @@ export default function AddTripScreen() {
               />
             </View>
 
-            {/* Row: Origin & Destination */}
+            {/* Row: Origin & Destination (Cascading State -> City) */}
             <View style={styles.row}>
               {/* Origin */}
               <Controller
@@ -258,15 +433,16 @@ export default function AddTripScreen() {
                 render={({field: {value}}) => (
                   <TouchableOpacity
                     style={[styles.fieldContainer, styles.rowField]}
-                    onPress={() => setActivePicker('origin')}
+                    onPress={() => setActiveLocationPicker('origin')}
                     activeOpacity={0.7}>
                     <View style={styles.dropdownInput}>
                       <AppText
                         variant="body"
-                        style={[styles.inputText, !value && styles.placeholderText]}>
+                        style={[styles.inputText, !value && styles.placeholderText]}
+                        numberOfLines={1}>
                         {value || 'Origin'}
                       </AppText>
-                      <Icon name="menu-down" size={22} color={colors.textMuted} />
+                      <Icon name="map-marker-outline" size={20} color={colors.primary} />
                     </View>
                   </TouchableOpacity>
                 )}
@@ -279,15 +455,16 @@ export default function AddTripScreen() {
                 render={({field: {value}}) => (
                   <TouchableOpacity
                     style={[styles.fieldContainer, styles.rowField]}
-                    onPress={() => setActivePicker('destination')}
+                    onPress={() => setActiveLocationPicker('destination')}
                     activeOpacity={0.7}>
                     <View style={styles.dropdownInput}>
                       <AppText
                         variant="body"
-                        style={[styles.inputText, !value && styles.placeholderText]}>
+                        style={[styles.inputText, !value && styles.placeholderText]}
+                        numberOfLines={1}>
                         {value || 'Destination'}
                       </AppText>
-                      <Icon name="menu-down" size={22} color={colors.textMuted} />
+                      <Icon name="flag-checkered" size={20} color={colors.primary} />
                     </View>
                   </TouchableOpacity>
                 )}
@@ -308,8 +485,18 @@ export default function AddTripScreen() {
                 name="billingType"
                 render={({field: {value, onChange}}) => (
                   <View style={styles.billingChipsRow}>
-                    {BILLING_TYPES.map(type => {
-                      const isSelected = value === type;
+                    {PRIMARY_BILLING_TYPES.map(type => {
+                      const isMore = type === 'More';
+                      const isSelected = isMore
+                        ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
+                        : value === type;
+
+                      const displayLabel = isMore
+                        ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
+                          ? `${value} ▾`
+                          : 'More ▾'
+                        : type;
+
                       return (
                         <TouchableOpacity
                           key={type}
@@ -317,7 +504,13 @@ export default function AddTripScreen() {
                             styles.billingChip,
                             isSelected && styles.billingChipSelected,
                           ]}
-                          onPress={() => onChange(type)}
+                          onPress={() => {
+                            if (isMore) {
+                              setActivePicker('moreBilling');
+                            } else {
+                              onChange(type);
+                            }
+                          }}
                           activeOpacity={0.7}>
                           <AppText
                             variant="label"
@@ -325,7 +518,7 @@ export default function AddTripScreen() {
                               styles.billingChipText,
                               isSelected && styles.billingChipTextSelected,
                             ]}>
-                            {type === 'More' ? 'More ▾' : type}
+                            {displayLabel}
                           </AppText>
                         </TouchableOpacity>
                       );
@@ -335,12 +528,63 @@ export default function AddTripScreen() {
               />
             </View>
 
-            {/* Party Freight Amount */}
+            {/* Dynamic Billing Rate & Quantity Inputs for Non-Fixed Types */}
+            {!isFixedBilling ? (
+              <View style={styles.row}>
+                {/* Rate per Unit */}
+                <View style={[styles.fieldContainer, styles.rowField]}>
+                  <View style={styles.floatingLabel}>
+                    <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                      Rate / {currentBillingConfig.unitName}
+                    </AppText>
+                  </View>
+                  <View style={styles.inputWithSuffix}>
+                    <TextInput
+                      value={formValues.billingRate}
+                      onChangeText={handleRateChange}
+                      placeholder="0.00"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      style={styles.flexInput}
+                    />
+                    <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
+                      ₹
+                    </AppText>
+                  </View>
+                </View>
+
+                {/* Total Quantity */}
+                <View style={[styles.fieldContainer, styles.rowField]}>
+                  <View style={styles.floatingLabel}>
+                    <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                      Total {currentBillingConfig.unitName}s
+                    </AppText>
+                  </View>
+                  <View style={styles.inputWithSuffix}>
+                    <TextInput
+                      value={formValues.billingQuantity}
+                      onChangeText={handleQuantityChange}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      style={styles.flexInput}
+                    />
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Party Freight Amount (Calculated / Editable) */}
             <Controller
               control={control}
               name="freightAmount"
               render={({field: {value, onChange}}) => (
                 <View style={styles.fieldContainer}>
+                  <View style={styles.floatingLabel}>
+                    <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                      Party Freight Amount {!isFixedBilling ? '(Auto-calculated)' : ''}
+                    </AppText>
+                  </View>
                   <View style={styles.inputWithSuffix}>
                     <TextInput
                       value={value}
@@ -348,7 +592,7 @@ export default function AddTripScreen() {
                       placeholder="Party Freight Amount"
                       placeholderTextColor={colors.textMuted}
                       keyboardType="numeric"
-                      style={styles.flexInput}
+                      style={[styles.flexInput, !isFixedBilling && styles.autoCalculatedInput]}
                     />
                     <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
                       ₹
@@ -363,28 +607,29 @@ export default function AddTripScreen() {
               )}
             />
 
-            {/* Trip Start Date */}
+            {/* Trip Start Date (Calendar Picker) */}
             <Controller
               control={control}
               name="tripStartDate"
-              render={({field: {value, onChange}}) => (
-                <View style={styles.fieldContainer}>
+              render={({field: {value}}) => (
+                <TouchableOpacity
+                  style={styles.fieldContainer}
+                  onPress={() => setDatePickerVisible(true)}
+                  activeOpacity={0.7}>
                   <View style={styles.floatingLabel}>
                     <AppText variant="caption" color="textMuted" style={styles.labelText}>
                       Trip Start Date
                     </AppText>
                   </View>
                   <View style={styles.inputWithSuffix}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="Trip Start Date"
-                      placeholderTextColor={colors.textMuted}
-                      style={styles.flexInput}
-                    />
-                    <Icon name="calendar-month-outline" size={20} color={colors.textMuted} />
+                    <AppText
+                      variant="body"
+                      style={[styles.flexInputText, !value && styles.placeholderText]}>
+                      {value || 'Select Start Date'}
+                    </AppText>
+                    <Icon name="calendar-month-outline" size={22} color={colors.primary} />
                   </View>
-                </View>
+                </TouchableOpacity>
               )}
             />
 
@@ -435,54 +680,94 @@ export default function AddTripScreen() {
         </View>
 
         {/* Selection Picker Modals */}
+        {/* Party Modal */}
         <SelectOptionModal
           visible={activePicker === 'party'}
           title="Select Party / Customer"
           options={partyOptions}
+          topActions={partyTopActions}
           selectedValue={formValues.partyName}
           onSelect={val => setValue('partyName', val, {shouldValidate: true})}
           onClose={() => setActivePicker(null)}
           placeholder="Search party name..."
         />
 
+        {/* Truck Modal */}
         <SelectOptionModal
           visible={activePicker === 'truck'}
           title="Select Truck Number"
-          options={COMMON_TRUCKS}
+          options={truckOptions}
+          topActions={truckTopActions}
           selectedValue={formValues.truckNumber}
           onSelect={val => setValue('truckNumber', val, {shouldValidate: true})}
           onClose={() => setActivePicker(null)}
           placeholder="Search or enter truck no..."
         />
 
+        {/* Driver Modal */}
         <SelectOptionModal
           visible={activePicker === 'driver'}
           title="Select Driver"
-          options={COMMON_DRIVERS}
+          options={driverOptions}
+          topActions={driverTopActions}
           selectedValue={formValues.driverName}
-          onSelect={val => setValue('driverName', val, {shouldValidate: true})}
+          onSelect={item => {
+            const val = typeof item === 'string' ? item : item.name;
+            const phoneVal = typeof item === 'object' ? item.phone : '';
+            setValue('driverName', val, {shouldValidate: true});
+            if (phoneVal) setValue('driverPhone', phoneVal, {shouldValidate: true});
+          }}
           onClose={() => setActivePicker(null)}
           placeholder="Search or enter driver name..."
         />
 
+        {/* More Billing Types Modal */}
         <SelectOptionModal
-          visible={activePicker === 'origin'}
-          title="Select Origin City"
-          options={COMMON_CITIES}
-          selectedValue={formValues.origin}
-          onSelect={val => setValue('origin', val, {shouldValidate: true})}
+          visible={activePicker === 'moreBilling'}
+          title="Select Party Billing Type"
+          options={ALL_BILLING_TYPES}
+          selectedValue={formValues.billingType}
+          onSelect={type => setValue('billingType', type, {shouldValidate: true})}
           onClose={() => setActivePicker(null)}
-          placeholder="Search origin city..."
+          allowCustom={false}
         />
 
-        <SelectOptionModal
-          visible={activePicker === 'destination'}
-          title="Select Destination City"
-          options={COMMON_CITIES}
-          selectedValue={formValues.destination}
-          onSelect={val => setValue('destination', val, {shouldValidate: true})}
-          onClose={() => setActivePicker(null)}
-          placeholder="Search destination city..."
+        {/* Origin & Destination Cascading State -> City Picker */}
+        <StateCityPickerModal
+          visible={Boolean(activeLocationPicker)}
+          title={activeLocationPicker === 'origin' ? 'Origin' : 'Destination'}
+          onSelectLocation={loc => {
+            if (activeLocationPicker === 'origin') {
+              setValue('origin', loc, {shouldValidate: true});
+            } else if (activeLocationPicker === 'destination') {
+              setValue('destination', loc, {shouldValidate: true});
+            }
+          }}
+          onClose={() => setActiveLocationPicker(null)}
+        />
+
+        {/* Device Contacts Picker Modal */}
+        <ContactsPickerModal
+          visible={contactsModalVisible}
+          title={contactsTarget === 'party' ? 'Select Party Contact' : 'Select Driver Contact'}
+          onSelectContact={handleSelectContact}
+          onClose={() => setContactsModalVisible(false)}
+        />
+
+        {/* Trip Start Date Calendar Picker Modal */}
+        <DatePickerModal
+          visible={datePickerVisible}
+          initialDate={formValues.tripStartDate}
+          onSelectDate={d => setValue('tripStartDate', d, {shouldValidate: true})}
+          onClose={() => setDatePickerVisible(false)}
+        />
+
+        {/* Quick Add Party / Truck / Driver Modal */}
+        <QuickAddModal
+          visible={quickAddModalVisible}
+          type={quickAddType}
+          onAdd={handleQuickAdd}
+          onClose={() => setQuickAddModalVisible(false)}
         />
 
         {/* Add More Details Bottom Sheet */}
@@ -636,6 +921,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     paddingVertical: 0,
+  },
+  flexInputText: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
+  },
+  autoCalculatedInput: {
+    fontWeight: '700',
+    color: colors.primary,
   },
   currencySymbol: {
     fontSize: 16,
