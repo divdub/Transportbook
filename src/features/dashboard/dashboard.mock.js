@@ -6,6 +6,8 @@ let mockDashboardState = {
     activeTrips: 12,
     receivables: 284500,
     trucks: 9,
+    parties: 18,
+    pendingPods: 5,
   },
   fleetPerformance: {
     utilization: '78%',

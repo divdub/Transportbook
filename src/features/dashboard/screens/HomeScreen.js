@@ -17,210 +17,164 @@ const defaultDashboard = {
     activeTrips: 12,
     receivables: 284500,
     trucks: 9,
+    parties: 18,
+    pendingPods: 5,
   },
-  fleetPerformance: {
-    utilization: '78%',
-    fuelEfficiency: '8.7 mpg',
-    onTimeRate: '92%',
-    idleTime: '1h 12m',
-  },
-  topDriver: {name: 'Lukas Weber', label: 'Top driver', rating: '9.7'},
-  serviceAlert: {vehicleCount: 4, label: 'Needing service'},
 };
-
-// TODO(navigation): wire remaining actions once their feature screens/routes
-// exist (Expenses, Payments, Trucks). Party and Trip are wired below.
-const quickActions = [
-  {key: 'trip', label: 'Add Trip', icon: 'truck-fast-outline'},
-  {key: 'expense', label: 'Expense', icon: 'receipt'},
-  {key: 'payment', label: 'Payment', icon: 'cash-multiple'},
-  {key: 'party', label: 'Add Party', icon: 'account-group-outline'},
-  {key: 'truck', label: 'Add Truck', icon: 'truck-plus-outline'},
-];
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const {data: dashboardData} = useDashboardQuery();
   const dashboard = dashboardData || defaultDashboard;
-  const {user, overview, fleetPerformance, topDriver, serviceAlert} = dashboard;
-
-  const handleQuickAction = key => {
-    if (key === 'party') {
-      navigation.navigate(routes.addParty);
-      return;
-    }
-    if (key === 'trip') {
-      navigation.navigate(routes.addTrip);
-      return;
-    }
-    // other actions still TODO until their screens exist
-  };
+  const {user, overview} = dashboard;
 
   return (
     <AppScreen>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <CurvedHeader>
-          <TopBar userName={user.name} />
-          <AppText variant="body" style={styles.headerTagline}>
-            Your business, at a glance
-          </AppText>
-        </CurvedHeader>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContainer}>
+        {/* Top Header Card (Receivables Header as shown in Image 2) */}
+        <HeaderCard
+          userName={user.name}
+          receivables={overview.receivables || 284500}
+        />
 
-        <FloatingStatsCard overview={overview} />
+        {/* 4 Premium Curved Cards (2x2 Grid) */}
+        <PremiumMetricsGrid overview={overview} navigation={navigation} />
 
-        <View style={styles.whiteSection}>
-          <QuickActionsCarousel actions={quickActions} onActionPress={handleQuickAction} />
-
+        {/* Promo Banner Carousel */}
+        <View style={styles.promoSection}>
           <PromoCarousel />
-
-          {/* <FleetPerformanceCard
-            metrics={fleetPerformance}
-            topDriver={topDriver}
-            serviceAlert={serviceAlert}
-          /> */}
-
-          <ManageModulesGrid navigation={navigation} />
         </View>
+
+        {/* Manage Business Modules */}
+        <ManageModulesGrid navigation={navigation} />
       </ScrollView>
     </AppScreen>
   );
 }
 
-function CurvedHeader({children}) {
-  return <View style={styles.curvedHeader}>{children}</View>;
-}
+/**
+ * Top Header Card matching Image 2 reference:
+ * - Left: Large bold Receivables Amount (e.g. ₹2,84,500) & Subtitle "Total Receivables"
+ * - Right: Notification Bell icon button with red badge & User profile avatar
+ */
+function HeaderCard({userName, receivables}) {
+  const initial = userName ? userName.charAt(0).toUpperCase() : 'R';
 
-function TopBar({userName}) {
   return (
-    <View style={styles.topBar}>
-      <View style={styles.profileGroup}>
-        <Icon name="account-circle" size={40} color={colors.onInk} />
-        <AppText variant="heading" color="onInk" style={styles.brandText}>
-          {userName}
-        </AppText>
-      </View>
+    <View style={styles.headerCard}>
+      <View style={styles.headerRow}>
+        {/* Left Side: Receivables Amount & Caption */}
+        <View style={styles.receivablesGroup}>
+          <AppText variant="heading" color="onInk" style={styles.receivablesAmount}>
+            {formatCurrency(receivables)}
+          </AppText>
+          <AppText variant="caption" style={styles.receivablesLabel}>
+            Total Receivables
+          </AppText>
+        </View>
 
-      <TouchableOpacity style={styles.notificationButton} accessibilityLabel="Notifications">
-        <Icon name="bell-outline" size={22} color={colors.onInk} />
-        <View style={styles.notificationDot} />
-      </TouchableOpacity>
-    </View>
-  );
-}
+        {/* Right Side: Notification Bell & Profile Avatar */}
+        <View style={styles.headerActionsGroup}>
+          <TouchableOpacity style={styles.iconCircleButton} accessibilityLabel="Notifications">
+            <Icon name="bell-outline" size={20} color="#FFFFFF" />
+            <View style={styles.notificationDot} />
+          </TouchableOpacity>
 
-function FloatingStatsCard({overview}) {
-  return (
-    <View style={styles.statsCard}>
-      <StatColumn label="Active Trips" value={overview.activeTrips} />
-      <View style={styles.statsDivider} />
-      <StatColumn label="Receivables" value={formatCurrency(overview.receivables)} />
-      <View style={styles.statsDivider} />
-      <StatColumn label="Trucks" value={overview.trucks} />
-    </View>
-  );
-}
-
-function StatColumn({label, value}) {
-  return (
-    <View style={styles.statColumn}>
-      <AppText variant="caption" color="textMuted">{label}</AppText>
-      <AppText variant="heading" style={styles.statValue}>{value}</AppText>
-    </View>
-  );
-}
-
-function QuickActionsCarousel({actions, onActionPress}) {
-  return (
-    <View style={styles.carouselWrap}>
-      <AppText variant="label" color="textMuted" style={styles.carouselLabel}>
-        QUICK ACTIONS
-      </AppText>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.carouselRow}>
-        {actions.map(action => (
-          <TouchableOpacity
-            key={action.key}
-            style={styles.actionTile}
-            accessibilityLabel={action.label}
-            onPress={() => onActionPress(action.key)}>
-            <View style={styles.actionIconCircle}>
-              <Icon name={action.icon} size={22} color={colors.ink} />
-            </View>
-            <AppText variant="caption" style={styles.actionLabel} numberOfLines={1}>
-              {action.label}
+          <TouchableOpacity style={styles.avatarButton} accessibilityLabel="Profile">
+            <AppText variant="label" style={styles.avatarText}>
+              {initial}
             </AppText>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+        </View>
+      </View>
     </View>
   );
 }
 
-// function FleetPerformanceCard({metrics, topDriver, serviceAlert}) {
-//   return (
-//     <View style={styles.performanceCard}>
-//       <AppText variant="heading" style={styles.performanceTitle}>
-//         Fleet performance overview
-//       </AppText>
+/**
+ * 4 Premium Curved Cards Grid:
+ * 1. Total Vehicles
+ * 2. Current Trips
+ * 3. Total Parties
+ * 4. Pending PODs
+ */
+function PremiumMetricsGrid({overview, navigation}) {
+  const cardsData = [
+    {
+      key: 'vehicles',
+      title: 'Total Vehicles',
+      value: `${overview.trucks || 9} Vehicles`,
+      subtitle: 'Fleet in Operation',
+      icon: 'truck-outline',
+      iconBg: '#EEF2FF',
+      iconColor: '#4F46E5',
+      route: routes.trucks,
+    },
+    {
+      key: 'trips',
+      title: 'Current Trips',
+      value: `${overview.activeTrips || 12} Active`,
+      subtitle: 'Trips in Transit',
+      icon: 'road-variant',
+      iconBg: '#ECFDF5',
+      iconColor: '#10B981',
+      route: routes.trips,
+    },
+    {
+      key: 'parties',
+      title: 'Total Parties',
+      value: `${overview.parties || 18} Parties`,
+      subtitle: 'Registered Khata',
+      icon: 'account-group-outline',
+      iconBg: '#FFF7ED',
+      iconColor: '#F97316',
+      route: routes.parties,
+    },
+    {
+      key: 'pods',
+      title: 'Pending PODs',
+      value: `${overview.pendingPods || 5} Pending`,
+      subtitle: 'PODs to Collect',
+      icon: 'file-document-outline',
+      iconBg: '#FDF2F8',
+      iconColor: '#EC4899',
+      route: routes.trips,
+    },
+  ];
 
-//       <View style={styles.metricGrid}>
-//         <MetricTile label="Utilization" value={metrics.utilization} />
-//         <MetricTile label="Fuel Efficiency" value={metrics.fuelEfficiency} dark />
-//         <MetricTile label="On-time Rate" value={metrics.onTimeRate} />
-//         <MetricTile label="Idle Time" value={metrics.idleTime} />
-//       </View>
-
-//       <View style={styles.divider} />
-
-//       <View style={styles.driverRow}>
-//         <View style={styles.driverAvatarPlaceholder}>
-//           <AppText variant="label" color="onInk">
-//             {topDriver.name.charAt(0)}
-//           </AppText>
-//         </View>
-//         <View style={styles.driverInfo}>
-//           <AppText variant="body" style={styles.driverName}>
-//             {topDriver.name}
-//           </AppText>
-//           <AppText variant="caption" color="textMuted">
-//             {topDriver.label}
-//           </AppText>
-//         </View>
-//         <View style={styles.ratingBadge}>
-//           <Icon name="star" size={12} color={colors.onInk} />
-//           <AppText variant="label" color="onInk"> {topDriver.rating}</AppText>
-//         </View>
-//       </View>
-
-//       <View style={styles.divider} />
-
-//       <TouchableOpacity style={styles.serviceRow}>
-//         <Icon name="truck-alert-outline" size={20} color={colors.text} />
-//         <View style={styles.serviceInfo}>
-//           <AppText variant="body" style={styles.serviceCount}>
-//             {serviceAlert.vehicleCount} vehicles
-//           </AppText>
-//           <AppText variant="caption" color="textMuted">
-//             {serviceAlert.label}
-//           </AppText>
-//         </View>
-//         <Icon name="chevron-right" size={20} color={colors.textMuted} />
-//       </TouchableOpacity>
-//     </View>
-//   );
-// }
-
-function MetricTile({label, value, dark}) {
   return (
-    <View style={[styles.metricTile, dark && styles.metricTileDark]}>
-      <AppText variant="caption" color={dark ? 'onInk' : 'textMuted'}>
-        {label}
-      </AppText>
-      <AppText variant="heading" color={dark ? 'onInk' : 'text'} style={styles.metricValue}>
-        {value}
-      </AppText>
+    <View style={styles.metricsContainer}>
+      <View style={styles.metricsGrid}>
+        {cardsData.map(card => (
+          <TouchableOpacity
+            key={card.key}
+            style={styles.metricCard}
+            activeOpacity={0.7}
+            onPress={() => {
+              if (card.route) navigation.navigate(card.route);
+            }}>
+            {/* Top Row: Title & Icon Badge */}
+            <View style={styles.cardTopRow}>
+              <AppText variant="caption" color="textMuted" style={styles.cardTitle} numberOfLines={1}>
+                {card.title}
+              </AppText>
+              <View style={[styles.cardIconBadge, {backgroundColor: card.iconBg}]}>
+                <Icon name={card.icon} size={20} color={card.iconColor} />
+              </View>
+            </View>
+
+            {/* Bottom Row: Value & Subtitle */}
+            <View style={styles.cardBottomGroup}>
+              <AppText variant="heading" style={styles.cardValue}>
+                {card.value}
+              </AppText>
+              <AppText variant="caption" color="textMuted" style={styles.cardSubtitle}>
+                {card.subtitle}
+              </AppText>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 }
@@ -228,7 +182,7 @@ function MetricTile({label, value, dark}) {
 function ManageModulesGrid({navigation}) {
   return (
     <View style={styles.modulesSection}>
-      <AppText variant="heading" style={styles.performanceTitle}>
+      <AppText variant="heading" style={styles.sectionTitle}>
         Manage business
       </AppText>
       <View style={styles.modulesGrid}>
@@ -251,183 +205,144 @@ function formatCurrency(value) {
 }
 
 const styles = StyleSheet.create({
-  curvedHeader: {
-    backgroundColor: colors.primary,
-    borderBottomLeftRadius: radius.lg + 16,
-    borderBottomRightRadius: radius.lg + 16,
+  scrollContainer: {
+    paddingBottom: spacing.xl,
+  },
+  headerCard: {
+    backgroundColor: colors.primary, // Deep Royal Navy Blue
+    borderRadius: radius.lg + 8,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl + spacing.lg, // extra room for the floating card overlap
-    marginHorizontal: -spacing.lg, // best-effort bleed — see note re: AppScreen padding
+    paddingVertical: spacing.lg + 4,
+    marginHorizontal: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+    shadowColor: colors.primary,
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  headerTagline: {
-    color: 'rgba(255,255,255,0.85)',
-  },
-  whiteSection: {
-    backgroundColor: colors.background,
-  },
-  topBar: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
   },
-  brandText: {
-    fontSize: typography.sizes.md,
+  receivablesGroup: {
+    gap: 2,
   },
-    profileGroup: {
+  receivablesAmount: {
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    color: '#FFFFFF',
+  },
+  receivablesLabel: {
+    color: 'rgba(255, 255, 255, 0.75)',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  headerActionsGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.sm + 2,
   },
- 
-  notificationButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md + 10,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+  iconCircleButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   notificationDot: {
     position: 'absolute',
-    top: 8,
-    right: 9,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    top: 9,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.accentStrong,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
   },
-  statsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    marginHorizontal: spacing.lg,
-    marginTop: -spacing.xl,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  statColumn: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  statValue: {
-    fontSize: typography.sizes.md,
-  },
-  statsDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: colors.border,
-  },
-  carouselWrap: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  carouselLabel: {
-    marginBottom: spacing.sm,
-    letterSpacing: 0.5,
-  },
-  carouselRow: {
-    gap: spacing.sm,
-  },
-  actionTile: {
-    width: 76,
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  actionIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceMuted,
+  avatarButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionLabel: {
-    textAlign: 'center',
+  avatarText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 18,
   },
-  performanceCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  performanceTitle: {
+  metricsContainer: {
+    paddingHorizontal: spacing.sm,
     marginBottom: spacing.md,
   },
-  metricGrid: {
+  metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginBottom: spacing.md,
   },
-  metricTile: {
-    width: '48%',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
+  metricCard: {
+    width: '48.5%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg + 4,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
-    gap: spacing.xs,
+    justifyContent: 'space-between',
+    minHeight: 110,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  metricTileDark: {
-    backgroundColor: colors.ink,
-  },
-  metricValue: {
-    fontSize: typography.sizes.md,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.md,
-  },
-  driverRow: {
+  cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'space-between',
   },
-  driverAvatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md + 10,
-    backgroundColor: colors.ink,
+  cardTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  cardIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  driverInfo: {
-    flex: 1,
+  cardBottomGroup: {
+    gap: 2,
+    marginTop: spacing.sm,
   },
-  driverName: {
-    fontWeight: typography.weights.semibold,
+  cardValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
   },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.accentStrong,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+  cardSubtitle: {
+    fontSize: 11,
   },
-  serviceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  serviceInfo: {
-    flex: 1,
-  },
-  serviceCount: {
-    fontWeight: typography.weights.semibold,
+  promoSection: {
+    marginBottom: spacing.md,
   },
   modulesSection: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  sectionTitle: {
+    marginBottom: spacing.md,
+    fontSize: typography.sizes.md,
+    fontWeight: '700',
   },
   modulesGrid: {
     flexDirection: 'row',
