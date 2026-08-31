@@ -760,6 +760,7 @@ export default function AddTripScreen() {
           initialDate={formValues.tripStartDate}
           onSelectDate={d => setValue('tripStartDate', d, {shouldValidate: true})}
           onClose={() => setDatePickerVisible(false)}
+          title="Select Trip Start Date"
         />
 
         {/* Quick Add Party / Truck / Driver Modal */}

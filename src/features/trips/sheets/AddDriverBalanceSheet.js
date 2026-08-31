@@ -12,6 +12,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppButton} from '../../../components/common/AppButton';
 import {AppText} from '../../../components/common/AppText';
+import {DatePickerModal} from '../components/DatePickerModal';
 import {colors, radius, spacing} from '../../../theme';
 
 const REASONS = ['Driver Bhatta', 'Fuel / Diesel', 'Toll Expense', 'Vehicle Repair', 'Trip Advance', 'Other'];
@@ -33,6 +34,7 @@ export function AddDriverBalanceSheet({
   const [reason, setReason] = useState('Driver Bhatta');
   const [date, setDate] = useState(getFormattedToday());
   const [note, setNote] = useState('');
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const handleConfirm = () => {
     if (!amount.trim()) return;
@@ -129,23 +131,24 @@ export function AddDriverBalanceSheet({
                 </View>
 
                 {/* Date */}
-                <View style={styles.fieldWrapper}>
+                <TouchableOpacity
+                  style={styles.fieldWrapper}
+                  onPress={() => setDatePickerVisible(true)}
+                  activeOpacity={0.7}>
                   <View style={styles.floatingLabel}>
                     <AppText variant="caption" color="textMuted" style={styles.labelText}>
                       Date
                     </AppText>
                   </View>
                   <View style={styles.inputWithSuffix}>
-                    <TextInput
-                      value={date}
-                      onChangeText={setDate}
-                      placeholder="Date"
-                      placeholderTextColor={colors.textMuted}
-                      style={styles.flexInput}
-                    />
-                    <Icon name="calendar-month-outline" size={20} color={colors.textMuted} />
+                    <AppText
+                      variant="body"
+                      style={[styles.flexInputText, !date && styles.placeholderText]}>
+                      {date || 'Select Date'}
+                    </AppText>
+                    <Icon name="calendar-month-outline" size={20} color={colors.primary} />
                   </View>
-                </View>
+                </TouchableOpacity>
 
                 {/* Note */}
                 <View style={styles.fieldWrapper}>
@@ -170,6 +173,15 @@ export function AddDriverBalanceSheet({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
+
+      {/* Date Calendar Picker Modal */}
+      <DatePickerModal
+        visible={datePickerVisible}
+        initialDate={date}
+        onSelectDate={setDate}
+        onClose={() => setDatePickerVisible(false)}
+        title="Select Date"
+      />
     </Modal>
   );
 }
@@ -271,6 +283,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     paddingVertical: 0,
+  },
+  flexInputText: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
+  },
+  placeholderText: {
+    color: colors.textMuted,
   },
   chipRow: {
     flexDirection: 'row',

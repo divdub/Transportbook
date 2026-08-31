@@ -12,9 +12,10 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppButton} from '../../../components/common/AppButton';
 import {AppText} from '../../../components/common/AppText';
+import {DatePickerModal} from '../components/DatePickerModal';
 import {colors, radius, spacing} from '../../../theme';
 
-const PAYMENT_MODES = ['Cash', 'Cheque', 'UPI', 'Bank Transfer'];
+const PAYMENT_MODES = ['Cash', 'Cheque', 'UPI', 'Bank Transfer','Fuel',"Others"];
 
 function getFormattedToday() {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -33,7 +34,7 @@ export function AddAdvanceSheet({
   const [paymentMode, setPaymentMode] = useState('Cash');
   const [receivedByDriver, setReceivedByDriver] = useState(false);
   const [note, setNote] = useState('');
-
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
   const handleSave = () => {
     if (!amount.trim()) return;
     onSave({
@@ -92,23 +93,24 @@ export function AddAdvanceSheet({
                 </View>
 
                 {/* Advance Date */}
-                <View style={styles.fieldWrapper}>
+                <TouchableOpacity
+                  style={styles.fieldWrapper}
+                  onPress={() => setDatePickerVisible(true)}
+                  activeOpacity={0.7}>
                   <View style={styles.floatingLabel}>
                     <AppText variant="caption" color="textMuted" style={styles.labelText}>
                       Advance Date
                     </AppText>
                   </View>
                   <View style={styles.inputWithSuffix}>
-                    <TextInput
-                      value={date}
-                      onChangeText={setDate}
-                      placeholder="Advance Date"
-                      placeholderTextColor={colors.textMuted}
-                      style={styles.flexInput}
-                    />
-                    <Icon name="calendar-month-outline" size={20} color={colors.textMuted} />
+                    <AppText
+                      variant="body"
+                      style={[styles.flexInputText, !date && styles.placeholderText]}>
+                      {date || 'Select Advance Date'}
+                    </AppText>
+                    <Icon name="calendar-month-outline" size={20} color={colors.primary} />
                   </View>
-                </View>
+                </TouchableOpacity>
 
                 {/* Payment Mode Selector */}
                 <View style={styles.paymentSection}>
@@ -179,6 +181,15 @@ export function AddAdvanceSheet({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
+
+      {/* Advance Date Calendar Picker Modal */}
+      <DatePickerModal
+        visible={datePickerVisible}
+        initialDate={date}
+        onSelectDate={setDate}
+        onClose={() => setDatePickerVisible(false)}
+        title="Select Advance Date"
+      />
     </Modal>
   );
 }
@@ -277,6 +288,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     paddingVertical: 0,
+  },
+  flexInputText: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
+  },
+  placeholderText: {
+    color: colors.textMuted,
   },
   paymentSection: {
     gap: 4,

@@ -15,6 +15,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppButton} from '../../../components/common/AppButton';
 import {AppScreen} from '../../../components/common/AppScreen';
 import {AppText} from '../../../components/common/AppText';
+import {DatePickerModal} from '../components/DatePickerModal';
 import {SelectOptionModal} from '../components/SelectOptionModal';
 import {AddMoreDetailsSheet} from '../sheets/AddMoreDetailsSheet';
 import {useAddTripMutation} from '../hooks/useAddTripMutation';
@@ -74,6 +75,7 @@ export default function AddLoadScreen() {
 
   const [moreDetailsVisible, setMoreDetailsVisible] = useState(false);
   const [activePicker, setActivePicker] = useState(null);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const partyOptions = useMemo(() => {
     if (!parties || parties.length === 0) {
@@ -356,24 +358,25 @@ export default function AddLoadScreen() {
             <Controller
               control={control}
               name="tripStartDate"
-              render={({field: {value, onChange}}) => (
-                <View style={styles.fieldContainer}>
+              render={({field: {value}}) => (
+                <TouchableOpacity
+                  style={styles.fieldContainer}
+                  onPress={() => setDatePickerVisible(true)}
+                  activeOpacity={0.7}>
                   <View style={styles.floatingLabel}>
                     <AppText variant="caption" color="textMuted" style={styles.labelText}>
                       Trip Start Date
                     </AppText>
                   </View>
                   <View style={styles.inputWithSuffix}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="Trip Start Date"
-                      placeholderTextColor={colors.textMuted}
-                      style={styles.flexInput}
-                    />
-                    <Icon name="calendar-month-outline" size={20} color={colors.textMuted} />
+                    <AppText
+                      variant="body"
+                      style={[styles.flexInputText, !value && styles.placeholderText]}>
+                      {value || 'Select Start Date'}
+                    </AppText>
+                    <Icon name="calendar-month-outline" size={22} color={colors.primary} />
                   </View>
-                </View>
+                </TouchableOpacity>
               )}
             />
 
@@ -451,6 +454,15 @@ export default function AddLoadScreen() {
           onSelect={val => setValue('destination', val, {shouldValidate: true})}
           onClose={() => setActivePicker(null)}
           placeholder="Search destination city..."
+        />
+
+        {/* Trip Start Date Calendar Picker Modal */}
+        <DatePickerModal
+          visible={datePickerVisible}
+          initialDate={formValues.tripStartDate}
+          onSelectDate={d => setValue('tripStartDate', d, {shouldValidate: true})}
+          onClose={() => setDatePickerVisible(false)}
+          title="Select Trip Start Date"
         />
 
         {/* Add More Details Sheet */}
@@ -608,6 +620,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     paddingVertical: 0,
+  },
+  flexInputText: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
   },
   currencySymbol: {
     fontSize: 16,
