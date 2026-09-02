@@ -1,10 +1,11 @@
 import {useQuery} from '@tanstack/react-query';
-import {mockFetchTripById} from '../trips.mock';
+import {tripsApi} from '../trips.api';
 
 export function useTripDetailsQuery(tripId) {
   return useQuery({
     queryKey: ['trip', tripId],
-    queryFn: () => mockFetchTripById(tripId),
+    queryFn: () => tripsApi.getTripById(tripId),
     enabled: Boolean(tripId),
   });
 }
+

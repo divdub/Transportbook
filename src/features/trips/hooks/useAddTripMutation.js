@@ -1,14 +1,15 @@
 import {useMutation, useQueryClient} from '@tanstack/react-query';
-import {mockCreateTrip} from '../trips.mock';
+import {tripsApi} from '../trips.api';
 
 export function useAddTripMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: mockCreateTrip,
+    mutationFn: payload => tripsApi.createTrip(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['trips']});
       queryClient.invalidateQueries({queryKey: ['dashboard']});
     },
   });
 }
+

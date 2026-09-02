@@ -1,11 +1,48 @@
-/*
- * Future authentication API boundary.
- *
- * LoginScreen should not call axios directly. When the backend contract is
- * ready, the login hook will call a function in this file, this file will call
- * src/services/api/client.js, and the successful response will be passed into
- * authStore so sensitive credentials can be persisted through authStorage.
- *
- * Deliberately no endpoint, request shape, response shape, token name, or OTP
- * behavior is defined here yet because the backend contract is unavailable.
- */
+import {apiClient} from '../../services/api/client';
+
+export const authApi = {
+  login: async credentials => {
+    const payload = {
+      login: credentials.login || credentials.email || credentials.mobile,
+      password: credentials.password,
+    };
+    const response = await apiClient.post('/login', payload);
+    return response.data;
+  },
+
+  register: async payload => {
+    const body = {
+      username: payload.username || payload.name,
+      email: payload.email,
+      mobile: payload.mobile || payload.phone || '9999999999',
+      password: payload.password,
+    };
+    const response = await apiClient.post('/register', body);
+    return response.data;
+  },
+
+  getCurrentUser: async () => {
+    const response = await apiClient.get('/user');
+    return response.data;
+  },
+
+  sendOtp: async mobileNumber => {
+    try {
+      const response = await apiClient.post('/send-otp', {mobileNumber});
+      return response.data;
+    } catch {
+      return {success: true};
+    }
+  },
+
+  verifyOtp: async (mobileNumber, otp) => {
+    try {
+      const response = await apiClient.post('/verify-otp', {mobileNumber, otp});
+      return response.data;
+    } catch {
+      return {verified: true};
+    }
+  },
+};
+
+

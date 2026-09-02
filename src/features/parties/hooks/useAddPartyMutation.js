@@ -1,13 +1,13 @@
 import {useMutation, useQueryClient} from '@tanstack/react-query';
-import {mockCreateParty} from '../parties.mock';
+import {partiesApi} from '../parties.api';
 
 export function useAddPartyMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: mockCreateParty,
+    mutationFn: payload => partiesApi.createParty(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['parties']});
     },
   });
-}
+}

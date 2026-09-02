@@ -1,14 +1,15 @@
 import {useMutation, useQueryClient} from '@tanstack/react-query';
-import {mockAddDriverBalance} from '../trips.mock';
+import {tripsApi} from '../trips.api';
 
 export function useAddDriverBalanceMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: mockAddDriverBalance,
+    mutationFn: ({id, ...data}) => tripsApi.addDriverBalance(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({queryKey: ['trips']});
       queryClient.invalidateQueries({queryKey: ['trip', variables.id]});
     },
   });
 }
+

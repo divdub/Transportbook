@@ -3,43 +3,41 @@ import {apiClient} from '../../services/api/client';
 
 let inMemoryTrucks = [...mockTrucks];
 
+export function mapTruckFromBackend(item) {
+  if (!item) return null;
+  return {
+    id: String(item.truckid || item.vehicle_id || item.id),
+    vehicleNumber: item.trucknumber || item.vehicle_no || item.registration_number || item.vehicleNumber,
+    vehicleTypeId: String(item.trucktype || item.vehicle_type_id || '1'),
+    vehicleTypeName: item.trucktype || item.vehicle_type_name || 'Commercial Truck',
+    ownership: item.ownership || (item.owner_id ? 'own' : 'market'),
+    ownerName: item.owner_name || 'Vehicle Owner',
+    ownerPhone: item.owner_phone || '',
+    driverId: item.driverId ? String(item.driverId) : (item.driver_id ? String(item.driver_id) : ''),
+    driverName: item.driverName || item.driver_name || 'Unassigned',
+    driverPhone: item.driver_phone || '',
+    status: item.status == 1 ? 'available' : 'maintenance',
+    activeTrip: item.activeTrip || null,
+    documents: item.documents || [],
+    recentTrips: item.recentTrips || [],
+    maintenanceHistory: item.maintenanceHistory || [],
+    performance: item.performance || {
+      totalTrips: 0,
+      totalRevenue: 0,
+      dieselExpenses: 0,
+      maintenanceExpenses: 0,
+      netProfit: 0,
+    },
+  };
+}
+
 export const trucksApi = {
   async getTrucks(params = {}) {
     try {
-      const response = await apiClient.get('/dispatch_report.php', {
-        params: {
-          token: 'GURU',
-          tag: 'm_vehicle',
-          user_id: params.userId || '1',
-          user_type: params.userType || '4',
-        },
-      });
-      if (response.data && response.data.success && Array.isArray(response.data.data)) {
-        // Map PHP backend m_vehicle array to frontend shape
-        return response.data.data.map(item => ({
-          id: String(item.vehicle_id),
-          vehicleNumber: item.vehicle_no,
-          vehicleTypeId: String(item.vehicle_type_id || '1'),
-          vehicleTypeName: item.vehicle_type_name || 'Commercial Truck',
-          ownership: item.owner_id ? 'own' : 'market',
-          ownerName: item.owner_name || 'Vehicle Owner',
-          ownerPhone: item.owner_phone || '',
-          driverId: item.driver_id ? String(item.driver_id) : '',
-          driverName: item.driver_name || 'Unassigned',
-          driverPhone: item.driver_phone || '',
-          status: item.is_active === '0' ? 'maintenance' : 'available',
-          activeTrip: null,
-          documents: [],
-          recentTrips: [],
-          maintenanceHistory: [],
-          performance: {
-            totalTrips: 0,
-            totalRevenue: 0,
-            dieselExpenses: 0,
-            maintenanceExpenses: 0,
-            netProfit: 0,
-          },
-        }));
+      const response = await apiClient.get('/trucks', {params});
+      const data = response.data?.data || response.data;
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map(mapTruckFromBackend);
       }
     } catch {
       // Backend not running or offline, return memory store
@@ -48,6 +46,15 @@ export const trucksApi = {
   },
 
   async getTruckById(truckId) {
+    try {
+      const response = await apiClient.get(`/trucks/${truckId}`);
+      const raw = response.data?.data || response.data;
+      if (raw) {
+        return mapTruckFromBackend(raw);
+      }
+    } catch {
+      // Local search fallback
+    }
     const truck = inMemoryTrucks.find(t => t.id === truckId || t.vehicleNumber === truckId);
     if (!truck) {
       throw new Error(`Truck with ID ${truckId} not found`);
@@ -56,6 +63,24 @@ export const trucksApi = {
   },
 
   async createTruck(payload) {
+    try {
+      const body = {
+        trucknumber: payload.vehicleNumber ? payload.vehicleNumber.trim().toUpperCase() : payload.trucknumber,
+        trucktype: payload.vehicleTypeName || payload.vehicleType || payload.trucktype || '10 Wheeler (24 Ton)',
+        ownership: payload.ownership || 'own',
+        supplierid: payload.supplierid || null,
+      };
+      const response = await apiClient.post('/trucks', body);
+      const created = response.data?.data || response.data;
+      if (created && (created.truckid || created.id || created.trucknumber)) {
+        const mapped = mapTruckFromBackend(created);
+        inMemoryTrucks = [mapped, ...inMemoryTrucks];
+        return mapped;
+      }
+    } catch {
+      // Local creation fallback
+    }
+
     const vehicleTypeObj =
       mockVehicleTypes.find(vt => vt.id === payload.vehicleType || vt.name === payload.vehicleType) ||
       mockVehicleTypes[0];
@@ -134,6 +159,15 @@ export const trucksApi = {
   },
 
   async addMaintenance(truckId, payload) {
+    try {
+      const response = await apiClient.post(`/trucks/${truckId}/maintenance`, payload);
+      if (response.data) {
+        return response.data?.data || response.data;
+      }
+    } catch {
+      // Local fallback
+    }
+
     const truck = inMemoryTrucks.find(t => t.id === truckId);
     if (!truck) {
       throw new Error(`Truck ${truckId} not found`);
@@ -161,3 +195,4 @@ export const trucksApi = {
     return mockVehicleTypes;
   },
 };
+

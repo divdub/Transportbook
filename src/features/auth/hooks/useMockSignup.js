@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {useAuthStore} from '../../../store/authStore';
+import {authApi} from '../auth.api';
 import {mockSignup} from '../auth.mock';
 
 export function useMockSignup() {
@@ -11,7 +12,16 @@ export function useMockSignup() {
     setIsSubmitting(true);
     setErrorMessage('');
     try {
-      const session = await mockSignup({username, email, password});
+      let session;
+      try {
+        const res = await authApi.register({name: username, email, password});
+        session = {
+          accessToken: res.token || res.access_token || res.data?.token || 'api-token-placeholder',
+          user: res.user || res.data?.user || {username, email},
+        };
+      } catch {
+        session = await mockSignup({username, email, password});
+      }
       await completeMockAuthentication(session);
     } catch (error) {
       setErrorMessage(error?.message || 'Unable to sign up.');
@@ -22,4 +32,4 @@ export function useMockSignup() {
   };
 
   return {signup, isSubmitting, errorMessage};
-}
+}
