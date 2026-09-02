@@ -10,12 +10,11 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppButton} from '../../../components/common/AppButton';
-import {AppHeader} from '../../../components/common/AppHeader';
 import {AppText} from '../../../components/common/AppText';
 import {useAuthStore} from '../../../store/authStore';
 import {useSendMobileOtp} from '../hooks/useSendMobileOtp';
 import {useVerifyMobileOtp} from '../hooks/useVerifyMobileOtp';
-import {colors, radius, spacing, typography} from '../../../theme';
+import {colors, radius, spacing} from '../../../theme';
 
 const OTP_LENGTH = 6;
 
@@ -78,109 +77,152 @@ export default function BusinessSetupScreen() {
         style={styles.keyboardContainer}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
+          bounces={false}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
-          
-          <AppHeader title="Business setup" subtitle="Tell us about you and your business" />
 
-          <View style={styles.form}>
-            <Field label="Your name" value={name} onChangeText={setName} placeholder="Full name" />
-            <Field
-              label="Business name"
-              value={businessName}
-              onChangeText={setBusinessName}
-              placeholder="e.g. ABC Transport Co."
-            />
+          {/* Top Header Bar */}
+          <View style={styles.headerBar}>
+            <View style={styles.headerSpacer} />
+            <AppText variant="title" style={styles.brandTitle}>
+              TransportApp
+            </AppText>
+            <View style={styles.headerSpacer} />
+          </View>
 
-            <View style={styles.field}>
-              <AppText variant="label" color="textMuted" style={styles.fieldLabel}>
-                Mobile number
+          {/* Main White Floating Card */}
+          <View style={styles.mainCard}>
+            {/* Title */}
+            <View style={styles.titleContainer}>
+              <AppText variant="heading" style={styles.titleLine1}>
+                Business Setup
               </AppText>
-              <View style={styles.mobileRow}>
-                <TextInput
-                  value={mobileNumber}
-                  onChangeText={setMobileNumber}
-                  placeholder="10-digit number"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="number-pad"
-                  maxLength={10}
-                  editable={!mobileVerified}
-                  style={[styles.input, styles.mobileInput]}
-                />
-                {mobileVerified ? (
-                  <View style={styles.verifiedBadge}>
-                    <Icon name="check-circle" size={18} color={colors.success} />
-                    <AppText variant="caption" color="success" style={styles.verifiedText}>
-                      Verified
-                    </AppText>
-                  </View>
-                ) : (
-                  <AppButton
-                    title={isSending ? 'Sending...' : 'Verify'}
-                    onPress={handleVerifyMobilePress}
-                    disabled={isSending || mobileNumber.length < 10}
-                    style={styles.verifyMobileButton}
-                  />
-                )}
-              </View>
+              <AppText variant="caption" style={styles.subtitle}>
+                Tell us about you and your business
+              </AppText>
             </View>
 
-            {otpVisible && !mobileVerified ? (
-              <View style={styles.otpSection}>
-                <AppText variant="caption" color="textMuted">
-                  Enter the 6-digit code sent to {mobileNumber}
+            {/* Input Fields */}
+            <View style={styles.formFields}>
+              <Field
+                label="Your name"
+                value={name}
+                onChangeText={setName}
+                placeholder="Full name"
+              />
+
+              <Field
+                label="Business name"
+                value={businessName}
+                onChangeText={setBusinessName}
+                placeholder="e.g. ABC Transport Co."
+              />
+
+              <View style={styles.field}>
+                <AppText variant="label" style={styles.label}>
+                  Mobile number
                 </AppText>
-                <View style={styles.otpRow}>
-                  {digits.map((digit, index) => (
+                <View style={styles.mobileRow}>
+                  <View style={styles.mobileInputWrapper}>
                     <TextInput
-                      key={index}
-                      ref={ref => (inputRefs.current[index] = ref)}
-                      value={digit}
-                      onChangeText={value => handleChangeDigit(value, index)}
-                      onKeyPress={event => handleKeyPress(event, index)}
+                      value={mobileNumber}
+                      onChangeText={setMobileNumber}
+                      placeholder="10-digit number"
+                      placeholderTextColor="#94A3B8"
                       keyboardType="number-pad"
-                      maxLength={1}
-                      style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
+                      maxLength={10}
+                      editable={!mobileVerified}
+                      style={styles.input}
+                      selectionColor={colors.primary2}
                     />
-                  ))}
-                </View>
-                {otpError ? (
-                  <AppText variant="caption" color="danger">{otpError}</AppText>
-                ) : null}
-                <View style={styles.otpBtnRow}>
-                  <AppButton
-                    title={isVerifying ? 'Verifying...' : 'Verify OTP'}
-                    onPress={handleVerifyOtpPress}
-                    disabled={otp.length !== OTP_LENGTH || isVerifying}
-                    style={styles.otpVerifyButton}
-                  />
+                  </View>
+
+                  {mobileVerified ? (
+                    <View style={styles.verifiedBadge}>
+                      <Icon name="check-circle" size={18} color={colors.success} />
+                      <AppText variant="caption" color="success" style={styles.verifiedText}>
+                        Verified
+                      </AppText>
+                    </View>
+                  ) : (
+                    <AppButton
+                      title={isSending ? 'Sending...' : 'Verify'}
+                      onPress={handleVerifyMobilePress}
+                      disabled={isSending || mobileNumber.length < 10}
+                      style={styles.verifyMobileButton}
+                    />
+                  )}
                 </View>
               </View>
-            ) : null}
+
+              {otpVisible && !mobileVerified ? (
+                <View style={styles.otpSection}>
+                  <AppText variant="caption" style={styles.otpHint}>
+                    Enter the 6-digit code sent to {mobileNumber}
+                  </AppText>
+                  <View style={styles.otpRow}>
+                    {digits.map((digit, index) => (
+                      <TextInput
+                        key={index}
+                        ref={ref => (inputRefs.current[index] = ref)}
+                        value={digit}
+                        onChangeText={value => handleChangeDigit(value, index)}
+                        onKeyPress={event => handleKeyPress(event, index)}
+                        keyboardType="number-pad"
+                        maxLength={1}
+                        style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
+                      />
+                    ))}
+                  </View>
+                  {otpError ? (
+                    <AppText variant="caption" color="danger" style={styles.otpErrorText}>
+                      {otpError}
+                    </AppText>
+                  ) : null}
+                  <View style={styles.otpBtnRow}>
+                    <AppButton
+                      title={isVerifying ? 'Verifying...' : 'Verify OTP'}
+                      onPress={handleVerifyOtpPress}
+                      disabled={otp.length !== OTP_LENGTH || isVerifying}
+                      style={styles.otpVerifyButton}
+                    />
+                  </View>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Primary Action Button */}
+            <AppButton
+              title="Complete Signup"
+              onPress={handleComplete}
+              disabled={!mobileVerified}
+              style={[
+                styles.completeButton,
+                !mobileVerified && styles.completeButtonDisabled,
+              ]}
+            />
           </View>
         </ScrollView>
-
-        {/* Pinned Bottom Footer for Complete Signup */}
-        <View style={styles.bottomFooter}>
-          <AppButton
-            title="Complete Signup"
-            onPress={handleComplete}
-            disabled={!mobileVerified}
-            style={styles.completeButton}
-          />
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-function Field({label, ...inputProps}) {
+function Field({label, placeholder, ...inputProps}) {
   return (
     <View style={styles.field}>
-      <AppText variant="label" color="textMuted" style={styles.fieldLabel}>
+      <AppText variant="label" style={styles.label}>
         {label}
       </AppText>
-      <TextInput placeholderTextColor={colors.textMuted} style={styles.input} {...inputProps} />
+      <View style={styles.inputWrapper}>
+        <TextInput
+          placeholder={placeholder}
+          placeholderTextColor="#94A3B8"
+          style={styles.input}
+          selectionColor={colors.primary2}
+          {...inputProps}
+        />
+      </View>
     </View>
   );
 }
@@ -188,69 +230,138 @@ function Field({label, ...inputProps}) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#EEF3F8',
   },
   keyboardContainer: {
     flex: 1,
   },
   scrollContent: {
-    padding: spacing.xl,
+    flexGrow: 1,
+    backgroundColor: '#EEF3F8',
     paddingBottom: spacing['2xl'],
   },
-  form: {
-    gap: spacing.lg,
-    marginTop: spacing.md,
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
   },
-  field: {
+  headerSpacer: {
+    width: 38,
+  },
+  brandTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.primary2,
+    letterSpacing: -0.3,
+  },
+  mainCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing['2xl'],
+    paddingBottom: spacing.xl,
+    shadowColor: '#64748B',
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  titleLine1: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  formFields: {
     gap: spacing.xs,
   },
-  fieldLabel: {
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  field: {
+    marginBottom: spacing.sm,
+  },
+  label: {
+    color: '#1E293B',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 50,
+    borderRadius: radius.md + 4,
+    backgroundColor: '#F5F7FA',
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: '#F5F7FA',
   },
   input: {
-    minHeight: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    fontSize: typography.sizes.md,
-    color: colors.text,
+    flex: 1,
+    height: '100%',
+    fontSize: 14,
+    color: '#121826',
+    paddingVertical: 0,
   },
   mobileRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
     alignItems: 'center',
+    gap: spacing.xs,
   },
-  mobileInput: {
+  mobileInputWrapper: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 50,
+    borderRadius: radius.md + 4,
+    backgroundColor: '#F5F7FA',
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: '#F5F7FA',
   },
   verifyMobileButton: {
-    minHeight: 46,
-    paddingHorizontal: spacing.lg,
+    height: 50,
+    borderRadius: radius.md + 4,
+    paddingHorizontal: spacing.md,
     backgroundColor: colors.primary2,
-    borderRadius: radius.md,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    height: 50,
     paddingHorizontal: spacing.md,
-    paddingVertical: 10,
     backgroundColor: colors.successSoft,
-    borderRadius: radius.md,
+    borderRadius: radius.md + 4,
   },
   verifiedText: {
     fontWeight: '700',
   },
   otpSection: {
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
+    gap: spacing.xs,
+    backgroundColor: '#F8FAFC',
     padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#E2E8F0',
+    marginTop: spacing.xs,
+  },
+  otpHint: {
+    color: '#64748B',
+    fontSize: 12,
   },
   otpRow: {
     flexDirection: 'row',
@@ -258,42 +369,48 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xs,
   },
   otpBox: {
-    width: 44,
-    height: 48,
-    borderRadius: radius.md,
+    width: 40,
+    height: 46,
+    borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSubtle,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
     textAlign: 'center',
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
-    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#121826',
   },
   otpBoxFilled: {
     borderColor: colors.primary2,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFFFF',
+  },
+  otpErrorText: {
+    fontSize: 12,
   },
   otpBtnRow: {
     alignItems: 'flex-start',
     marginTop: spacing.xs,
   },
   otpVerifyButton: {
-    minHeight: 40,
-    paddingHorizontal: spacing.xl,
+    height: 42,
+    borderRadius: radius.round,
+    paddingHorizontal: spacing.lg,
     backgroundColor: colors.primary2,
-    borderRadius: radius.md,
-  },
-  bottomFooter: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
-    paddingBottom: Platform.OS === 'ios' ? spacing.xs : spacing.md,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   completeButton: {
-    minHeight: 48,
-    borderRadius: radius.md,
+    height: 50,
+    borderRadius: radius.round,
     backgroundColor: colors.primary2,
+    shadowColor: colors.primary2,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+    marginTop: spacing.lg,
   },
-});
+  completeButtonDisabled: {
+    opacity: 0.6,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+});
