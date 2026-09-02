@@ -14,22 +14,34 @@ export function useMockLogin() {
     try {
       let session;
       try {
-        const res = await authApi.login({email, password});
+        const res = await authApi.login({login: email, password});
+        const token = res.data?.token || res.token || res.access_token;
+        const user = res.data || res.user || {email, username: email};
+        if (!token) {
+          throw new Error(res.message || 'Invalid email/mobile or password');
+        }
         session = {
-          accessToken: res.token || res.access_token || res.data?.token || 'api-token-placeholder',
-          user: res.user || res.data?.user || {email, name: email.split('@')[0]},
+          accessToken: token,
+          user: user,
+          onboarded: true,
         };
-      } catch {
+      } catch (apiError) {
+        if (apiError.status || apiError.type === 'validation' || apiError.type === 'authentication') {
+          setErrorMessage(apiError.message || 'Invalid email/mobile or password');
+          return;
+        }
+        // Fallback to mock login if offline
         session = await mockLogin({email, password});
+        session.onboarded = true;
       }
       await completeMockAuthentication(session);
     } catch (error) {
       setErrorMessage(error?.message || 'Unable to log in.');
-      throw error;
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return {login, isSubmitting, errorMessage};
-}
+}
+

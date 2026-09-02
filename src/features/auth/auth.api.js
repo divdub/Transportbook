@@ -7,6 +7,10 @@ export const authApi = {
       password: credentials.password,
     };
     const response = await apiClient.post('/login', payload);
+    if (response.data?.status === false) {
+      const firstErr = response.data.errors ? Object.values(response.data.errors)[0]?.[0] : null;
+      throw new Error(firstErr || response.data.message || 'Login failed');
+    }
     return response.data;
   },
 
@@ -14,12 +18,17 @@ export const authApi = {
     const body = {
       username: payload.username || payload.name,
       email: payload.email,
-      mobile: payload.mobile || payload.phone || '9999999999',
+      mobile: payload.mobile || payload.phone,
       password: payload.password,
     };
     const response = await apiClient.post('/register', body);
+    if (response.data?.status === false) {
+      const firstErr = response.data.errors ? Object.values(response.data.errors)[0]?.[0] : null;
+      throw new Error(firstErr || response.data.message || 'Registration failed');
+    }
     return response.data;
   },
+
 
   getCurrentUser: async () => {
     const response = await apiClient.get('/user');

@@ -21,7 +21,7 @@ export function SignupForm({onSwitchToLogin}) {
     formState: {errors},
   } = useForm({
     resolver: zodResolver(signupSchema),
-    defaultValues: {username: '', email: '', password: '', confirmPassword: ''},
+    defaultValues: {username: '', email: '', mobile: '', password: '', confirmPassword: ''},
   });
 
   const onSubmit = data => {
@@ -62,6 +62,15 @@ export function SignupForm({onSwitchToLogin}) {
           keyboardType="email-address"
           autoCapitalize="none"
           error={errors.email?.message}
+        />
+        <AuthFormField
+          control={control}
+          name="mobile"
+          label="Mobile Number"
+          placeholder="9876766565"
+          keyboardType="number-pad"
+          maxLength={10}
+          error={errors.mobile?.message}
         />
         <AuthFormField
           control={control}

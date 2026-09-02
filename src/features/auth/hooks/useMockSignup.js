@@ -8,28 +8,40 @@ export function useMockSignup() {
   const [errorMessage, setErrorMessage] = useState('');
   const completeMockAuthentication = useAuthStore(state => state.completeMockAuthentication);
 
-  const signup = async ({username, email, password}) => {
+  const signup = async ({username, email, mobile, password}) => {
     setIsSubmitting(true);
     setErrorMessage('');
     try {
       let session;
       try {
-        const res = await authApi.register({name: username, email, password});
+        const res = await authApi.register({username, email, mobile, password});
+        const token = res.data?.token || res.token || res.access_token;
+        const user = res.data || res.user || {username, email, mobile};
+        if (!token) {
+          throw new Error(res.message || 'Registration failed');
+        }
         session = {
-          accessToken: res.token || res.access_token || res.data?.token || 'api-token-placeholder',
-          user: res.user || res.data?.user || {username, email},
+          accessToken: token,
+          user: user,
+          onboarded: true,
         };
-      } catch {
-        session = await mockSignup({username, email, password});
+      } catch (apiError) {
+        if (apiError.status || apiError.type === 'validation' || apiError.type === 'authentication') {
+          setErrorMessage(apiError.message || 'Registration failed');
+          return;
+        }
+        // Fallback to mock session if backend server is unreachable
+        session = await mockSignup({username, email, mobile, password});
+        session.onboarded = true;
       }
       await completeMockAuthentication(session);
     } catch (error) {
       setErrorMessage(error?.message || 'Unable to sign up.');
-      throw error;
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return {signup, isSubmitting, errorMessage};
-}
+}
+
