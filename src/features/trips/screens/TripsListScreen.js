@@ -12,6 +12,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppButton} from '../../../components/common/AppButton';
 import {AppScreen} from '../../../components/common/AppScreen';
 import {AppText} from '../../../components/common/AppText';
+import {EmptyState} from '../../../components/common/EmptyState';
 import {TripCard} from '../components/TripCard';
 import {TripStatusFilter} from '../components/TripStatusFilter';
 import {useTripsQuery} from '../hooks/useTripsQuery';
@@ -178,30 +179,24 @@ export default function TripsListScreen() {
           <AppButton title="Retry" onPress={() => refetch()} style={styles.actionBtn} />
         </View>
       ) : filteredTrips.length === 0 ? (
-        <View style={styles.centerMessage}>
-          <Icon name="truck-outline" size={48} color={colors.textMuted} />
-          <AppText variant="body" color="textMuted" style={styles.emptyTitle}>
-            {search
+        <EmptyState
+          title={
+            search
+              ? 'No trips found'
+              : selectedStatus !== 'All'
+              ? `No ${selectedStatus} trips`
+              : 'No trips yet'
+          }
+          message={
+            search
               ? 'No trips match your search.'
               : selectedStatus !== 'All'
               ? `No ${selectedStatus} trips found.`
-              : 'No trips created yet.'}
-          </AppText>
-          {search ? (
-            <AppButton
-              title="Clear Search"
-              variant="secondary"
-              onPress={() => setSearch('')}
-              style={styles.actionBtn}
-            />
-          ) : (
-            <AppButton
-              title="Create First Trip"
-              onPress={handleCreateTrip}
-              style={styles.actionBtn}
-            />
-          )}
-        </View>
+              : 'No trips created yet. Start with your first trip.'
+          }
+          actionLabel={search ? 'Clear Search' : 'Create First Trip'}
+          onAction={search ? () => setSearch('') : handleCreateTrip}
+        />
       ) : (
         <FlatList
           data={filteredTrips}
@@ -313,10 +308,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: spacing.xs,
-  },
-  emptyTitle: {
-    textAlign: 'center',
-    fontSize: 14,
   },
   actionBtn: {
     minWidth: 160,

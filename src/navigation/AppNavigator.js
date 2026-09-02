@@ -4,6 +4,8 @@ import MainTabNavigator from './MainTabNavigator';
 import PartiesListScreen from '../features/parties/screens/PartiesListScreen';
 import AddPartyScreen from '../features/parties/screens/AddPartyScreen';
 import SelectStateScreen from '../features/parties/screens/SelectStateScreen';
+import DriversListScreen from '../features/drivers/screens/DriversListScreen';
+import AddDriverScreen from '../features/drivers/screens/AddDriverScreen';
 import TripsListScreen from '../features/trips/screens/TripsListScreen';
 import AddTripScreen from '../features/trips/screens/AddTripScreen';
 import TripDetailsScreen from '../features/trips/screens/TripDetailsScreen';
@@ -72,6 +74,16 @@ export default function AppNavigator() {
           name={routes.selectState}
           component={SelectStateScreen}
           options={{headerShown: false, presentation: 'modal'}}
+        />
+        <Stack.Screen
+          name={routes.driversList}
+          component={DriversListScreen}
+          options={{title: 'Drivers'}}
+        />
+        <Stack.Screen
+          name={routes.addDriver}
+          component={AddDriverScreen}
+          options={{title: 'Add Driver'}}
         />
       </Stack.Navigator>
 

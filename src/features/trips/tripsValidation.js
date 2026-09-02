@@ -2,8 +2,11 @@ import {z} from 'zod';
 
 export const addTripSchema = z.object({
   partyName: z.string().trim().optional().or(z.literal('')),
+  partyId: z.string().or(z.number()).nullish(),
   truckNumber: z.string().trim().optional().or(z.literal('')),
+  truckId: z.string().or(z.number()).nullish(),
   driverName: z.string().trim().optional().or(z.literal('')),
+  driverId: z.string().or(z.number()).nullish(),
   driverPhone: z
     .string()
     .trim()

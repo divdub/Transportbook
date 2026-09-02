@@ -38,6 +38,20 @@ export function mapTripFromBackend(item) {
   };
 }
 
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function toIsoDate(value) {
+  if (!value) return new Date().toISOString().split('T')[0];
+  const m = String(value).match(/^(\d{1,2}) ([A-Za-z]{3}) (\d{4})$/);
+  if (m) {
+    const d = new Date(Date.UTC(Number(m[3]), SHORT_MONTHS.indexOf(m[2]), Number(m[1])));
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  }
+  const d = new Date(value);
+  if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  return String(value);
+}
+
 export const tripsApi = {
   getTrips: async params => {
     try {
@@ -66,20 +80,27 @@ export const tripsApi = {
   },
 
   createTrip: async data => {
+    const body = {
+      // Backend expects integer foreign keys — send the IDs captured from the
+      // parties/trucks/drivers list endpoints, falling back to null when the
+      // entry was created locally (Quick Add) or left unassigned.
+      tripdate: toIsoDate(data.tripStartDate || data.tripDate),
+      truckid: data.truckId ? Number(data.truckId) : null,
+      partyid: data.partyId ? Number(data.partyId) : null,
+      supplierid: data.supplierId ? Number(data.supplierId) : null,
+      driverid: data.driverId ? Number(data.driverId) : null,
+      // TODO(backend): wire originid/destinationid once a city list endpoint
+      // exists — for now they are nullable on the server and sent as null.
+      originid: data.originId ? Number(data.originId) : null,
+      destinationid: data.destinationId ? Number(data.destinationId) : null,
+      partybillingtype: data.billingType || 'Fixed',
+      rate: Number(data.billingRate) || Number(data.freightRate) || 0,
+      wt: Number(data.billingQuantity) || Number(data.weight) || 0,
+      freightamt: Number(data.freightAmount) || 0,
+      material: data.material || '',
+      remark: data.note || data.notes || '',
+    };
     try {
-      const body = {
-        tripdate: data.tripStartDate || data.tripDate || new Date().toISOString().split('T')[0],
-        truckid: data.truckId ? Number(data.truckId) : null,
-        partyid: data.partyId ? Number(data.partyId) : null,
-        supplierid: data.supplierId ? Number(data.supplierId) : null,
-        driverid: data.driverId ? Number(data.driverId) : null,
-        partybillingtype: data.billingType || 'Fixed',
-        rate: Number(data.freightRate) || 0,
-        wt: Number(data.weight) || 0,
-        freightamt: Number(data.freightAmount) || 0,
-        material: data.material || '',
-        remark: data.note || data.notes || '',
-      };
       const response = await apiClient.post('/trips', body);
       const created = response.data?.data || response.data;
       if (created && (created.tripid || created.id || created.tripno)) {
@@ -90,7 +111,6 @@ export const tripsApi = {
     }
     return mockCreateTrip(data);
   },
-
 
   updateTrip: async (id, data) => {
     try {

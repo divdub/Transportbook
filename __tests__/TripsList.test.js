@@ -39,13 +39,10 @@ function Wrapper({children}) {
 }
 
 describe('Trips Module - Phase 1', () => {
-  it('fetches mock trips correctly', async () => {
+  it('fetches trips correctly (starts empty until a trip is created)', async () => {
     const trips = await mockFetchTrips();
     expect(Array.isArray(trips)).toBe(true);
-    expect(trips.length).toBeGreaterThan(0);
-    expect(trips[0]).toHaveProperty('partyName');
-    expect(trips[0]).toHaveProperty('truckNumber');
-    expect(trips[0]).toHaveProperty('freightAmount');
+    expect(trips.length).toBe(0);
   });
 
   it('creates new trip in mock dataset', async () => {

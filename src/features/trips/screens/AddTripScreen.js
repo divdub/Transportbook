@@ -25,6 +25,7 @@ import {AddMoreDetailsSheet} from '../sheets/AddMoreDetailsSheet';
 import {useAddTripMutation} from '../hooks/useAddTripMutation';
 import {usePartiesQuery} from '../../parties/hooks/usePartiesQuery';
 import {useTrucksQuery} from '../../trucks/hooks/useTrucksQuery';
+import {useDriversQuery} from '../../drivers/hooks/useDriversQuery';
 import {addTripSchema} from '../tripsValidation';
 import {routes} from '../../../navigation/routeNames';
 import {colors, radius, spacing} from '../../../theme';
@@ -57,27 +58,6 @@ const BILLING_CONFIG = {
   'Per Box': {rateLabel: 'Rate per Box (₹)', qtyLabel: 'Total Boxes', unitName: 'Box'},
 };
 
-const DEFAULT_TRUCKS = [
-  'KA 12 DS 3747',
-  'MH 04 AB 8821',
-  'GJ 01 XX 4410',
-  'DL 01 AA 9021',
-  'RJ 14 GB 1290',
-  'HR 26 DQ 5520',
-  'AP 09 CK 3311',
-  'TN 02 BB 7744',
-];
-
-const DEFAULT_DRIVERS = [
-  {name: 'Ramesh Kumar', phone: '9876543210'},
-  {name: 'Suresh Patil', phone: '9822011223'},
-  {name: 'Vikram Singh', phone: '9711223344'},
-  {name: 'Manoj Yadav', phone: '9988776655'},
-  {name: 'Deepak Sharma', phone: '9811224466'},
-  {name: 'Rajesh Verma', phone: '9845012345'},
-  {name: 'Unassigned', phone: ''},
-];
-
 function getFormattedToday() {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const now = new Date();
@@ -89,6 +69,7 @@ export default function AddTripScreen() {
   const {mutateAsync: createTrip, isPending} = useAddTripMutation();
   const {data: apiParties} = usePartiesQuery();
   const {data: apiTrucks} = useTrucksQuery();
+  const {data: apiDrivers} = useDriversQuery();
 
   // Custom added items in state
   const [customParties, setCustomParties] = useState([]);
@@ -118,9 +99,12 @@ export default function AddTripScreen() {
     resolver: zodResolver(addTripSchema),
     mode: 'onChange',
     defaultValues: {
-      partyName: 'Sainy Logistics',
-      truckNumber: 'KA12DS3747',
+      partyName: '',
+      partyId: null,
+      truckNumber: '',
+      truckId: null,
       driverName: '',
+      driverId: null,
       driverPhone: '',
       origin: '',
       destination: '',
@@ -138,17 +122,9 @@ export default function AddTripScreen() {
 
   const formValues = watch();
 
-  // Combined Party Options
+  // Combined Party Options (carry partyid from the backend)
   const partyOptions = useMemo(() => {
-    const defaultList = [
-      {name: 'Sainy Logistics', category: 'Transport Partner'},
-      {name: 'Tata Steel Ltd', category: 'Goods Supplier'},
-      {name: 'Reliance Retail', category: 'FMCG Partner'},
-      {name: 'Ultratech Cement', category: 'Manufacturer'},
-      {name: 'Ambuja Logistics', category: 'Partner'},
-    ];
-    const fromApi = apiParties && apiParties.length > 0 ? apiParties : defaultList;
-    const combined = [...customParties, ...fromApi];
+    const combined = [...customParties, ...(apiParties || [])];
     // Remove duplicates
     const seen = new Set();
     return combined.filter(p => {
@@ -160,40 +136,58 @@ export default function AddTripScreen() {
       label: p.name,
       sublabel: p.category || p.phoneNumber || '',
       value: p.name,
+      id: p.id || null,
     }));
   }, [apiParties, customParties]);
 
-  // Combined Truck Options
+  // Combined Truck Options (carry truckid from the backend)
   const truckOptions = useMemo(() => {
-    const fromApi = apiTrucks && apiTrucks.length > 0
-      ? apiTrucks.map(t => t.vehicleNumber)
-      : DEFAULT_TRUCKS;
-    const combined = [...customTrucks, ...fromApi];
+    const fromApi = (apiTrucks || []).map(t => ({
+      name: t.vehicleNumber,
+      label: t.vehicleNumber,
+      value: t.vehicleNumber,
+      id: t.id || null,
+    }));
+    const fromCustom = customTrucks.map(t => {
+      const number = typeof t === 'string' ? t : t.vehicleNumber;
+      return {
+        name: number,
+        label: number,
+        value: number,
+        id: (typeof t === 'object' && t.id) || null,
+      };
+    });
+    const combined = [...fromCustom, ...fromApi];
     const seen = new Set();
     return combined.filter(t => {
-      const val = typeof t === 'string' ? t : t.vehicleNumber;
-      if (seen.has(val)) return false;
-      seen.add(val);
+      if (seen.has(t.value)) return false;
+      seen.add(t.value);
       return true;
     });
   }, [apiTrucks, customTrucks]);
 
-  // Combined Driver Options
+  // Combined Driver Options (carry driverid from the backend)
   const driverOptions = useMemo(() => {
-    const combined = [...customDrivers, ...DEFAULT_DRIVERS];
+    const combined = [...customDrivers, ...(apiDrivers || [])];
     const seen = new Set();
     return combined.filter(d => {
-      if (seen.has(d.name)) return false;
-      seen.add(d.name);
+      const name = d.drivername || d.name;
+      if (!name || seen.has(name)) return false;
+      seen.add(name);
       return true;
-    }).map(d => ({
-      name: d.name,
-      label: d.name,
-      sublabel: d.phone ? `Phone: ${d.phone}` : '',
-      value: d.name,
-      phone: d.phone || '',
-    }));
-  }, [customDrivers]);
+    }).map(d => {
+      const name = d.drivername || d.name;
+      const phone = d.mobile || d.phone || '';
+      return {
+        name,
+        label: name,
+        sublabel: phone ? `Phone: ${phone}` : '',
+        value: name,
+        id: d.id || null,
+        phone,
+      };
+    });
+  }, [apiDrivers, customDrivers]);
 
   // Form Handlers
   const onSubmit = async values => {
@@ -237,8 +231,10 @@ export default function AddTripScreen() {
   const handleSelectContact = contact => {
     if (contactsTarget === 'party') {
       setValue('partyName', contact.name, {shouldValidate: true});
+      setValue('partyId', null);
     } else if (contactsTarget === 'driver') {
       setValue('driverName', contact.name, {shouldValidate: true});
+      setValue('driverId', null);
       setValue('driverPhone', contact.phone, {shouldValidate: true});
     }
   };
@@ -248,12 +244,15 @@ export default function AddTripScreen() {
     if (quickAddType === 'party') {
       setCustomParties(prev => [addedData, ...prev]);
       setValue('partyName', addedData.name, {shouldValidate: true});
+      setValue('partyId', addedData.id || null);
     } else if (quickAddType === 'truck') {
-      setCustomTrucks(prev => [addedData.vehicleNumber, ...prev]);
+      setCustomTrucks(prev => [addedData, ...prev]);
       setValue('truckNumber', addedData.vehicleNumber, {shouldValidate: true});
+      setValue('truckId', addedData.id || null);
     } else if (quickAddType === 'driver') {
       setCustomDrivers(prev => [addedData, ...prev]);
       setValue('driverName', addedData.name, {shouldValidate: true});
+      setValue('driverId', addedData.id || null);
       if (addedData.phone) setValue('driverPhone', addedData.phone, {shouldValidate: true});
     }
   };
@@ -687,7 +686,12 @@ export default function AddTripScreen() {
           options={partyOptions}
           topActions={partyTopActions}
           selectedValue={formValues.partyName}
-          onSelect={val => setValue('partyName', val, {shouldValidate: true})}
+          onSelect={item => {
+            const val = typeof item === 'string' ? item : item.name || item.value;
+            const id = typeof item === 'object' ? item.id : null;
+            setValue('partyName', val, {shouldValidate: true});
+            setValue('partyId', Number(id) || null);
+          }}
           onClose={() => setActivePicker(null)}
           placeholder="Search party name..."
         />
@@ -699,7 +703,12 @@ export default function AddTripScreen() {
           options={truckOptions}
           topActions={truckTopActions}
           selectedValue={formValues.truckNumber}
-          onSelect={val => setValue('truckNumber', val, {shouldValidate: true})}
+          onSelect={item => {
+            const val = typeof item === 'string' ? item : item.value || item.name;
+            const id = typeof item === 'object' ? item.id : null;
+            setValue('truckNumber', val, {shouldValidate: true});
+            setValue('truckId', Number(id) || null);
+          }}
           onClose={() => setActivePicker(null)}
           placeholder="Search or enter truck no..."
         />
@@ -712,9 +721,11 @@ export default function AddTripScreen() {
           topActions={driverTopActions}
           selectedValue={formValues.driverName}
           onSelect={item => {
-            const val = typeof item === 'string' ? item : item.name;
+            const nameVal = typeof item === 'string' ? item : item.value || item.name;
+            const id = typeof item === 'object' ? item.id : null;
             const phoneVal = typeof item === 'object' ? item.phone : '';
-            setValue('driverName', val, {shouldValidate: true});
+            setValue('driverName', nameVal, {shouldValidate: true});
+            setValue('driverId', Number(id) || null);
             if (phoneVal) setValue('driverPhone', phoneVal, {shouldValidate: true});
           }}
           onClose={() => setActivePicker(null)}

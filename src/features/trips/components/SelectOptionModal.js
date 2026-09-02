@@ -36,8 +36,7 @@ export function SelectOptionModal({
   }, [options, search]);
 
   const handleSelect = opt => {
-    const val = typeof opt === 'string' ? opt : opt.value || opt.name || opt.label;
-    onSelect(val);
+    onSelect(opt);
     setSearch('');
     onClose();
   };

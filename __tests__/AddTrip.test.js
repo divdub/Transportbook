@@ -16,6 +16,16 @@ jest.mock('../src/features/parties/hooks/usePartiesQuery', () => ({
   }),
 }));
 
+jest.mock('../src/features/drivers/hooks/useDriversQuery', () => ({
+  useDriversQuery: () => ({
+    data: [
+      {id: 'D-1', drivername: 'Ramesh Kumar', mobile: '9876543210'},
+      {id: 'D-2', drivername: 'Suresh Patil', mobile: '9822011223'},
+    ],
+    isLoading: false,
+  }),
+}));
+
 jest.mock('../src/features/trips/hooks/useAddTripMutation', () => ({
   useAddTripMutation: () => ({
     mutateAsync: jest.fn().mockResolvedValue({id: 'TRIP-999'}),

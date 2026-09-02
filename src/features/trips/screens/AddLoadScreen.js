@@ -411,7 +411,10 @@ export default function AddLoadScreen() {
           title="Select Party / Customer"
           options={partyOptions}
           selectedValue={formValues.partyName}
-          onSelect={val => setValue('partyName', val, {shouldValidate: true})}
+          onSelect={item => {
+            const val = typeof item === 'string' ? item : item.value || item.name;
+            setValue('partyName', val, {shouldValidate: true});
+          }}
           onClose={() => setActivePicker(null)}
           placeholder="Search party name..."
         />

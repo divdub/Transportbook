@@ -21,7 +21,7 @@ export function SignupForm({onSwitchToLogin}) {
     formState: {errors},
   } = useForm({
     resolver: zodResolver(signupSchema),
-    defaultValues: {username: '', email: '', mobile: '', password: '', confirmPassword: ''},
+    defaultValues: {username: '', email: '', mobile: '', password: ''},
   });
 
   const onSubmit = data => {
