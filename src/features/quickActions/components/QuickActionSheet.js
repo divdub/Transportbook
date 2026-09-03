@@ -13,8 +13,9 @@ const actions = [
   {key: 'expense', label: 'Add Expense', icon: 'receipt-outline'},
   {key: 'payment', label: 'Add Payment', icon: 'cash-multiple'},
   {key: 'party', label: 'Add Party', icon: 'account-group-outline', route: routes.addParty},
-  {key: 'truck', label: 'Add Truck', icon: 'truck-plus-outline'},
-  {key: 'driver', label: 'Add Driver', icon: 'account-plus-outline'},
+  {key: 'truck', label: 'Add Truck', icon: 'truck-plus-outline', route: routes.addTruck},
+  {key: 'driver', label: 'Add Driver', icon: 'account-plus-outline', route: routes.addDriver},
+  {key: 'supplier', label: 'Add Supplier', icon: 'account-plus-outline', route: routes.addSupplier},
 ];
 
 const QuickActionSheet = forwardRef(function QuickActionSheet(_, forwardedRef) {

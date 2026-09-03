@@ -108,7 +108,7 @@ function PremiumMetricsGrid({overview, navigation}) {
       icon: 'truck-outline',
       iconBg: '#EEF2FF',
       iconColor: '#4F46E5',
-      route: routes.trucks,
+      route: routes.trucksList,
     },
     {
       key: 'trips',
@@ -118,7 +118,7 @@ function PremiumMetricsGrid({overview, navigation}) {
       icon: 'road-variant',
       iconBg: '#ECFDF5',
       iconColor: '#10B981',
-      route: routes.trips,
+      route: routes.tripsList,
     },
     {
       key: 'parties',
@@ -128,7 +128,7 @@ function PremiumMetricsGrid({overview, navigation}) {
       icon: 'account-group-outline',
       iconBg: '#FFF7ED',
       iconColor: '#F97316',
-      route: routes.parties,
+      route: routes.partiesList,
     },
     {
       key: 'pods',

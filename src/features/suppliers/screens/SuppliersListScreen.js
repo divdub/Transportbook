@@ -5,30 +5,32 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppButton} from '../../../components/common/AppButton';
 import {AppScreen} from '../../../components/common/AppScreen';
 import {AppText} from '../../../components/common/AppText';
-import {DriverListItem} from '../components/DriverListItem';
-import {useDriversQuery} from '../hooks/useDriversQuery';
+import {SupplierListItem} from '../components/SupplierListItem';
+import {useSuppliersQuery} from '../hooks/useSuppliersQuery';
 import {routes} from '../../../navigation/routeNames';
 import {colors, radius, spacing} from '../../../theme';
 
-export default function DriversListScreen() {
+export default function SuppliersListScreen() {
   const navigation = useNavigation();
-  const {data: drivers, isLoading, isError, refetch, isRefetching} = useDriversQuery();
+  const {data: suppliers, isLoading, isError, refetch, isRefetching} = useSuppliersQuery();
   const [search, setSearch] = useState('');
 
-  const filteredDrivers = useMemo(() => {
-    if (!drivers) return [];
-    if (!search.trim()) return drivers;
+  const filteredSuppliers = useMemo(() => {
+    if (!suppliers) return [];
+    if (!search.trim()) return suppliers;
     const query = search.trim().toLowerCase();
-    return drivers.filter(
-      driver =>
-        (driver.drivername && driver.drivername.toLowerCase().includes(query)) ||
-        (driver.mobile && driver.mobile.includes(query)),
+    return suppliers.filter(
+      supplier =>
+        (supplier.suppliername &&
+          supplier.suppliername.toLowerCase().includes(query)) ||
+        (supplier.mobile && supplier.mobile.includes(query)) ||
+        (supplier.contactperson && supplier.contactperson.toLowerCase().includes(query)),
     );
-  }, [drivers, search]);
+  }, [suppliers, search]);
 
   const activeCount = useMemo(
-    () => (drivers || []).filter(d => Number(d.status) === 1).length,
-    [drivers],
+    () => (suppliers || []).filter(s => Number(s.status) === 1).length,
+    [suppliers],
   );
 
   return (
@@ -36,15 +38,15 @@ export default function DriversListScreen() {
       <View style={styles.header}>
         <View>
           <AppText variant="heading" style={styles.title}>
-            Drivers
+            Suppliers
           </AppText>
           <AppText variant="caption" color="textMuted">
-            {drivers ? `${drivers.length} Total Drivers • ${activeCount} Active` : 'Fleet drivers'}
+            {suppliers ? `${suppliers.length} Total • ${activeCount} Active` : 'Vendors & suppliers'}
           </AppText>
         </View>
         <AppButton
-          title="Add Driver"
-          onPress={() => navigation.navigate(routes.addDriver)}
+          title="Add Supplier"
+          onPress={() => navigation.navigate(routes.addSupplier)}
           style={styles.addButton}
         />
       </View>
@@ -55,55 +57,47 @@ export default function DriversListScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search drivers..."
+            placeholder="Search suppliers..."
             placeholderTextColor={colors.textMuted}
             style={styles.searchInput}
           />
-          {search ? (
-            <Icon name="close-circle" size={18} color={colors.textMuted} />
-          ) : null}
         </View>
       </View>
 
       {isLoading ? (
         <AppText variant="body" color="textMuted" style={styles.centerMessage}>
-          Loading drivers...
+          Loading suppliers...
         </AppText>
       ) : isError ? (
         <View style={styles.centerMessage}>
           <AppText variant="body" color="danger">
-            Couldn't load drivers.
+            Couldn't load suppliers.
           </AppText>
           <AppButton title="Retry" onPress={() => refetch()} style={styles.retryButton} />
         </View>
-      ) : filteredDrivers.length === 0 ? (
+      ) : filteredSuppliers.length === 0 ? (
         <View style={styles.centerMessage}>
-          <Icon name="account-tie-outline" size={48} color={colors.textMuted} />
+          <Icon name="domain" size={48} color={colors.textMuted} />
           <AppText variant="body" color="textMuted">
-            {search ? 'No drivers match your search.' : 'No drivers yet.'}
+            {search ? 'No suppliers match your search.' : 'No suppliers yet.'}
           </AppText>
           {!search && (
             <AppButton
-              title="Add your first driver"
-              onPress={() => navigation.navigate(routes.addDriver)}
+              title="Add your first supplier"
+              onPress={() => navigation.navigate(routes.addSupplier)}
               style={styles.retryButton}
             />
           )}
         </View>
       ) : (
         <FlatList
-          data={filteredDrivers}
+          data={filteredSuppliers}
           keyExtractor={item => item.id}
           onRefresh={refetch}
           refreshing={isRefetching}
           ItemSeparatorComponent={ItemSeparator}
           renderItem={({item}) => (
-            <DriverListItem
-              driver={item}
-              onPress={() => {
-                // TODO: navigate to Driver Details/Khata once that screen is built
-              }}
-            />
+            <SupplierListItem supplier={item} onPress={() => {}} />
           )}
           contentContainerStyle={styles.listContent}
           style={styles.list}

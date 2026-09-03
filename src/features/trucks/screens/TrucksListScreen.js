@@ -5,30 +5,30 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppButton} from '../../../components/common/AppButton';
 import {AppScreen} from '../../../components/common/AppScreen';
 import {AppText} from '../../../components/common/AppText';
-import {DriverListItem} from '../components/DriverListItem';
-import {useDriversQuery} from '../hooks/useDriversQuery';
+import {TruckListItem} from '../components/TruckListItem';
+import {useTrucksQuery} from '../hooks/useTrucksQuery';
 import {routes} from '../../../navigation/routeNames';
 import {colors, radius, spacing} from '../../../theme';
 
-export default function DriversListScreen() {
+export default function TrucksListScreen() {
   const navigation = useNavigation();
-  const {data: drivers, isLoading, isError, refetch, isRefetching} = useDriversQuery();
+  const {data: trucks, isLoading, isError, refetch, isRefetching} = useTrucksQuery();
   const [search, setSearch] = useState('');
 
-  const filteredDrivers = useMemo(() => {
-    if (!drivers) return [];
-    if (!search.trim()) return drivers;
+  const filteredTrucks = useMemo(() => {
+    if (!trucks) return [];
+    if (!search.trim()) return trucks;
     const query = search.trim().toLowerCase();
-    return drivers.filter(
-      driver =>
-        (driver.drivername && driver.drivername.toLowerCase().includes(query)) ||
-        (driver.mobile && driver.mobile.includes(query)),
+    return trucks.filter(
+      truck =>
+        (truck.vehicleNumber && truck.vehicleNumber.toLowerCase().includes(query)) ||
+        (truck.vehicleTypeName && truck.vehicleTypeName.toLowerCase().includes(query)),
     );
-  }, [drivers, search]);
+  }, [trucks, search]);
 
   const activeCount = useMemo(
-    () => (drivers || []).filter(d => Number(d.status) === 1).length,
-    [drivers],
+    () => (trucks || []).filter(t => t.status !== 'maintenance').length,
+    [trucks],
   );
 
   return (
@@ -36,15 +36,15 @@ export default function DriversListScreen() {
       <View style={styles.header}>
         <View>
           <AppText variant="heading" style={styles.title}>
-            Drivers
+            Trucks
           </AppText>
           <AppText variant="caption" color="textMuted">
-            {drivers ? `${drivers.length} Total Drivers • ${activeCount} Active` : 'Fleet drivers'}
+            {trucks ? `${trucks.length} Total • ${activeCount} Active` : 'Fleet vehicles'}
           </AppText>
         </View>
         <AppButton
-          title="Add Driver"
-          onPress={() => navigation.navigate(routes.addDriver)}
+          title="Add Truck"
+          onPress={() => navigation.navigate(routes.addTruck)}
           style={styles.addButton}
         />
       </View>
@@ -55,56 +55,46 @@ export default function DriversListScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search drivers..."
+            placeholder="Search trucks..."
             placeholderTextColor={colors.textMuted}
             style={styles.searchInput}
           />
-          {search ? (
-            <Icon name="close-circle" size={18} color={colors.textMuted} />
-          ) : null}
         </View>
       </View>
 
       {isLoading ? (
         <AppText variant="body" color="textMuted" style={styles.centerMessage}>
-          Loading drivers...
+          Loading trucks...
         </AppText>
       ) : isError ? (
         <View style={styles.centerMessage}>
           <AppText variant="body" color="danger">
-            Couldn't load drivers.
+            Couldn't load trucks.
           </AppText>
           <AppButton title="Retry" onPress={() => refetch()} style={styles.retryButton} />
         </View>
-      ) : filteredDrivers.length === 0 ? (
+      ) : filteredTrucks.length === 0 ? (
         <View style={styles.centerMessage}>
-          <Icon name="account-tie-outline" size={48} color={colors.textMuted} />
+          <Icon name="truck-outline" size={48} color={colors.textMuted} />
           <AppText variant="body" color="textMuted">
-            {search ? 'No drivers match your search.' : 'No drivers yet.'}
+            {search ? 'No trucks match your search.' : 'No trucks yet.'}
           </AppText>
           {!search && (
             <AppButton
-              title="Add your first driver"
-              onPress={() => navigation.navigate(routes.addDriver)}
+              title="Add your first truck"
+              onPress={() => navigation.navigate(routes.addTruck)}
               style={styles.retryButton}
             />
           )}
         </View>
       ) : (
         <FlatList
-          data={filteredDrivers}
+          data={filteredTrucks}
           keyExtractor={item => item.id}
           onRefresh={refetch}
           refreshing={isRefetching}
           ItemSeparatorComponent={ItemSeparator}
-          renderItem={({item}) => (
-            <DriverListItem
-              driver={item}
-              onPress={() => {
-                // TODO: navigate to Driver Details/Khata once that screen is built
-              }}
-            />
-          )}
+          renderItem={({item}) => <TruckListItem truck={item} onPress={() => {}} />}
           contentContainerStyle={styles.listContent}
           style={styles.list}
           showsVerticalScrollIndicator={false}

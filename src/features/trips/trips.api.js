@@ -13,7 +13,10 @@ export function mapTripFromBackend(item) {
   return {
     id: String(item.tripid || item.id || item.tripno),
     tripno: item.tripno || item.id,
-    partyName: item.partyname || item.partyName || 'Party Name',
+    partyId: item.partyid == null ? null : String(item.partyid),
+    truckId: item.truckid == null ? null : String(item.truckid),
+    driverId: item.driverid == null ? null : String(item.driverid),
+    partyName: item.partyname || item.partyName || '',
     truckNumber: item.trucknumber || item.truckNumber || 'Commercial Truck',
     driverName: item.drivername || item.driverName || 'Driver',
     origin: item.origin_name || item.origin || 'Origin',
@@ -89,8 +92,6 @@ export const tripsApi = {
       partyid: data.partyId ? Number(data.partyId) : null,
       supplierid: data.supplierId ? Number(data.supplierId) : null,
       driverid: data.driverId ? Number(data.driverId) : null,
-      // TODO(backend): wire originid/destinationid once a city list endpoint
-      // exists — for now they are nullable on the server and sent as null.
       originid: data.originId ? Number(data.originId) : null,
       destinationid: data.destinationId ? Number(data.destinationId) : null,
       partybillingtype: data.billingType || 'Fixed',

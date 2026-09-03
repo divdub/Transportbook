@@ -7,6 +7,7 @@ export const addTruckSchema = z.object({
     .transform(val => val.toUpperCase().replace(/\s+/g, ' ')),
   vehicleType: z.string().min(1, 'Vehicle type is required'),
   ownership: z.enum(['own', 'market']).default('own'),
+  supplierId: z.string().optional().nullable(),
   ownerName: z.string().optional(),
   ownerPhone: z.string().optional(),
   driverName: z.string().optional(),

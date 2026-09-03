@@ -68,7 +68,7 @@ export const trucksApi = {
         trucknumber: payload.vehicleNumber ? payload.vehicleNumber.trim().toUpperCase() : payload.trucknumber,
         trucktype: payload.vehicleTypeName || payload.vehicleType || payload.trucktype || '10 Wheeler (24 Ton)',
         ownership: payload.ownership || 'own',
-        supplierid: payload.supplierid || null,
+        supplierid: payload.supplierid || payload.supplierId || null,
       };
       const response = await apiClient.post('/trucks', body);
       const created = response.data?.data || response.data;

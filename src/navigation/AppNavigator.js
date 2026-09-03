@@ -6,6 +6,10 @@ import AddPartyScreen from '../features/parties/screens/AddPartyScreen';
 import SelectStateScreen from '../features/parties/screens/SelectStateScreen';
 import DriversListScreen from '../features/drivers/screens/DriversListScreen';
 import AddDriverScreen from '../features/drivers/screens/AddDriverScreen';
+import SuppliersListScreen from '../features/suppliers/screens/SuppliersListScreen';
+import AddSupplierScreen from '../features/suppliers/screens/AddSupplierScreen';
+import TrucksListScreen from '../features/trucks/screens/TrucksListScreen';
+import AddTruckScreen from '../features/trucks/screens/AddTruckScreen';
 import TripsListScreen from '../features/trips/screens/TripsListScreen';
 import AddTripScreen from '../features/trips/screens/AddTripScreen';
 import TripDetailsScreen from '../features/trips/screens/TripDetailsScreen';
@@ -84,6 +88,26 @@ export default function AppNavigator() {
           name={routes.addDriver}
           component={AddDriverScreen}
           options={{title: 'Add Driver'}}
+        />
+        <Stack.Screen
+          name={routes.suppliersList}
+          component={SuppliersListScreen}
+          options={{title: 'Suppliers'}}
+        />
+        <Stack.Screen
+          name={routes.addSupplier}
+          component={AddSupplierScreen}
+          options={{title: 'Add Supplier'}}
+        />
+        <Stack.Screen
+          name={routes.trucksList}
+          component={TrucksListScreen}
+          options={{title: 'Trucks'}}
+        />
+        <Stack.Screen
+          name={routes.addTruck}
+          component={AddTruckScreen}
+          options={{title: 'Add Truck'}}
         />
       </Stack.Navigator>
 

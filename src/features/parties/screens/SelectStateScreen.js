@@ -22,7 +22,7 @@ export default function SelectStateScreen({navigation, route}) {
   };
 
   return (
-    <AppScreen>
+    <AppScreen scroll={false} style={styles.screen}>
       <View style={styles.topRow}>
         <View style={styles.searchField}>
           <Icon name="magnify" size={18} color={colors.textMuted} />
@@ -48,6 +48,7 @@ export default function SelectStateScreen({navigation, route}) {
         keyExtractor={item => item}
         keyboardShouldPersistTaps="handled"
         ItemSeparatorComponent={StateSeparator}
+        style={styles.list}
         renderItem={({item}) => (
           <TouchableOpacity style={styles.row} onPress={() => handleSelect(item)}>
             <AppText variant="body">{item}</AppText>
@@ -71,6 +72,9 @@ function StateSeparator() {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -91,6 +95,9 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.text,
     padding: 0,
+  },
+  list: {
+    flex: 1,
   },
   closeButton: {
     width: 40,

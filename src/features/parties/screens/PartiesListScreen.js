@@ -28,8 +28,10 @@ export default function PartiesListScreen() {
   }, [parties, search]);
 
   return (
-    <AppScreen>
-      <AppHeader title="Parties" subtitle="Customers and business partners" />
+    <AppScreen scroll={false} style={styles.screen} contentStyle={styles.screenContent}>
+      <View style={styles.headerWrap}>
+        <AppHeader title="Parties" subtitle="Customers and business partners" />
+      </View>
 
       <View style={styles.toolbar}>
         <View style={styles.searchField}>
@@ -90,6 +92,7 @@ export default function PartiesListScreen() {
             />
           )}
           contentContainerStyle={styles.listContent}
+          style={styles.list}
         />
       )}
     </AppScreen>
@@ -101,10 +104,23 @@ function ItemSeparator() {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  screenContent: {
+    flex: 1,
+    padding: 0,
+  },
+  headerWrap: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
   toolbar: {
     flexDirection: 'row',
     gap: spacing.sm,
     marginBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   searchField: {
     flex: 1,
@@ -132,7 +148,11 @@ const styles = StyleSheet.create({
   retryButton: {
     minWidth: 160,
   },
+  list: {
+    flex: 1,
+  },
   listContent: {
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl,
   },
 });
