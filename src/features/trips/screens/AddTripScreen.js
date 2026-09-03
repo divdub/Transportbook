@@ -420,60 +420,34 @@ export default function AddTripScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
-          
-          {/* Main Form Fields Container */}
-          <View style={styles.formCard}>
+        <View style={styles.bodyContainer}>
+          <ScrollView
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}>
             
-            {/* Party / Customer Name */}
-            <Controller
-              control={control}
-              name="partyName"
-              render={({field: {value}}) => (
-                <TouchableOpacity
-                  style={styles.fieldContainer}
-                  onPress={() => setActivePicker('party')}
-                  activeOpacity={0.7}>
-                  <View style={styles.floatingLabel}>
-                    <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                      Party/Customer Name
-                    </AppText>
-                  </View>
-                  <View style={styles.dropdownInput}>
-                    <AppText
-                      variant="body"
-                      style={[styles.inputText, !value && styles.placeholderText]}>
-                      {value || 'Select Party / Customer'}
-                    </AppText>
-                    <Icon name="menu-down" size={22} color={colors.textMuted} />
-                  </View>
-                </TouchableOpacity>
-              )}
-            />
-
-            {/* Row: Truck No & Driver / Supplier Name */}
-            <View style={styles.row}>
-              {/* Truck No */}
+            {/* Main Form Fields Container */}
+            <View style={styles.formCard}>
+              
+              {/* Party / Customer Name */}
               <Controller
                 control={control}
-                name="truckNumber"
+                name="partyName"
                 render={({field: {value}}) => (
                   <TouchableOpacity
-                    style={[styles.fieldContainer, styles.rowField]}
-                    onPress={() => setActivePicker('truck')}
+                    style={styles.fieldContainer}
+                    onPress={() => setActivePicker('party')}
                     activeOpacity={0.7}>
                     <View style={styles.floatingLabel}>
                       <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                        Truck No.
+                        Party/Customer Name
                       </AppText>
                     </View>
                     <View style={styles.dropdownInput}>
                       <AppText
                         variant="body"
-                        style={[styles.inputText, styles.boldInput, !value && styles.placeholderText]}>
-                        {value || 'Truck No.'}
+                        style={[styles.inputText, !value && styles.placeholderText]}>
+                        {value || 'Select Party / Customer'}
                       </AppText>
                       <Icon name="menu-down" size={22} color={colors.textMuted} />
                     </View>
@@ -481,464 +455,493 @@ export default function AddTripScreen() {
                 )}
               />
 
-              {/* Supplier/Truck Owner (if Market truck) OR Driver Name */}
-              {isMarketTruck ? (
+              {/* Row: Truck No & Driver / Supplier Name */}
+              <View style={styles.row}>
+                {/* Truck No */}
                 <Controller
                   control={control}
-                  name="supplierName"
+                  name="truckNumber"
                   render={({field: {value}}) => (
                     <TouchableOpacity
                       style={[styles.fieldContainer, styles.rowField]}
-                      onPress={() => setActivePicker('supplier')}
+                      onPress={() => setActivePicker('truck')}
                       activeOpacity={0.7}>
                       <View style={styles.floatingLabel}>
                         <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                          Supplier/Truck Owner
+                          Truck No.
                         </AppText>
                       </View>
                       <View style={styles.dropdownInput}>
                         <AppText
                           variant="body"
                           style={[styles.inputText, styles.boldInput, !value && styles.placeholderText]}>
-                          {value || 'Supplier/Truck Owner'}
+                          {value || 'Truck No.'}
                         </AppText>
                         <Icon name="menu-down" size={22} color={colors.textMuted} />
                       </View>
                     </TouchableOpacity>
                   )}
                 />
-              ) : (
+
+                {/* Supplier/Truck Owner (if Market truck) OR Driver Name */}
+                {isMarketTruck ? (
+                  <Controller
+                    control={control}
+                    name="supplierName"
+                    render={({field: {value}}) => (
+                      <TouchableOpacity
+                        style={[styles.fieldContainer, styles.rowField]}
+                        onPress={() => setActivePicker('supplier')}
+                        activeOpacity={0.7}>
+                        <View style={styles.floatingLabel}>
+                          <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                            Supplier/Truck Owner
+                          </AppText>
+                        </View>
+                        <View style={styles.dropdownInput}>
+                          <AppText
+                            variant="body"
+                            style={[styles.inputText, styles.boldInput, !value && styles.placeholderText]}>
+                            {value || 'Supplier/Truck Owner'}
+                          </AppText>
+                          <Icon name="menu-down" size={22} color={colors.textMuted} />
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  />
+                ) : (
+                  <Controller
+                    control={control}
+                    name="driverName"
+                    render={({field: {value}}) => (
+                      <TouchableOpacity
+                        style={[styles.fieldContainer, styles.rowField]}
+                        onPress={() => setActivePicker('driver')}
+                        activeOpacity={0.7}>
+                        <View style={styles.floatingLabel}>
+                          <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                            Driver Name
+                          </AppText>
+                        </View>
+                        <View style={styles.dropdownInput}>
+                          <AppText
+                            variant="body"
+                            style={[styles.inputText, !value && styles.placeholderText]}>
+                            {value || 'Optional'}
+                          </AppText>
+                          <Icon name="menu-down" size={22} color={colors.textMuted} />
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  />
+                )}
+              </View>
+
+              {/* Row: Origin & Destination (Cascading State -> City) */}
+              <View style={styles.row}>
+                {/* Origin */}
                 <Controller
                   control={control}
-                  name="driverName"
+                  name="origin"
                   render={({field: {value}}) => (
                     <TouchableOpacity
                       style={[styles.fieldContainer, styles.rowField]}
-                      onPress={() => setActivePicker('driver')}
+                      onPress={() => setActiveLocationPicker('origin')}
                       activeOpacity={0.7}>
-                      <View style={styles.floatingLabel}>
-                        <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                          Driver Name
-                        </AppText>
-                      </View>
                       <View style={styles.dropdownInput}>
                         <AppText
                           variant="body"
-                          style={[styles.inputText, !value && styles.placeholderText]}>
-                          {value || 'Optional'}
+                          style={[styles.inputText, !value && styles.placeholderText]}
+                          numberOfLines={1}>
+                          {value || 'Origin'}
                         </AppText>
-                        <Icon name="menu-down" size={22} color={colors.textMuted} />
+                        <Icon name="map-marker-outline" size={20} color={colors.primary} />
                       </View>
                     </TouchableOpacity>
                   )}
                 />
-              )}
-            </View>
 
-            {/* Row: Origin & Destination (Cascading State -> City) */}
-            <View style={styles.row}>
-              {/* Origin */}
-              <Controller
-                control={control}
-                name="origin"
-                render={({field: {value}}) => (
-                  <TouchableOpacity
-                    style={[styles.fieldContainer, styles.rowField]}
-                    onPress={() => setActiveLocationPicker('origin')}
-                    activeOpacity={0.7}>
-                    <View style={styles.dropdownInput}>
-                      <AppText
-                        variant="body"
-                        style={[styles.inputText, !value && styles.placeholderText]}
-                        numberOfLines={1}>
-                        {value || 'Origin'}
-                      </AppText>
-                      <Icon name="map-marker-outline" size={20} color={colors.primary} />
-                    </View>
-                  </TouchableOpacity>
-                )}
-              />
-
-              {/* Destination */}
-              <Controller
-                control={control}
-                name="destination"
-                render={({field: {value}}) => (
-                  <TouchableOpacity
-                    style={[styles.fieldContainer, styles.rowField]}
-                    onPress={() => setActiveLocationPicker('destination')}
-                    activeOpacity={0.7}>
-                    <View style={styles.dropdownInput}>
-                      <AppText
-                        variant="body"
-                        style={[styles.inputText, !value && styles.placeholderText]}
-                        numberOfLines={1}>
-                        {value || 'Destination'}
-                      </AppText>
-                      <Icon name="flag-checkered" size={20} color={colors.primary} />
-                    </View>
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
-
-            {/* Party Billing Type */}
-            <View style={styles.billingSection}>
-              <View style={styles.billingHeader}>
-                <AppText variant="body" color="textMuted" style={styles.billingLabel}>
-                  Party Billing Type
-                </AppText>
-                <Icon name="information-outline" size={16} color={colors.textMuted} />
-              </View>
-
-              <Controller
-                control={control}
-                name="billingType"
-                render={({field: {value, onChange}}) => (
-                  <View style={styles.billingChipsRow}>
-                    {PRIMARY_BILLING_TYPES.map(type => {
-                      const isMore = type === 'More';
-                      const isSelected = isMore
-                        ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
-                        : value === type;
-
-                      const displayLabel = isMore
-                        ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
-                          ? `${value} ▾`
-                          : 'More ▾'
-                        : type;
-
-                      return (
-                        <TouchableOpacity
-                          key={type}
-                          style={[
-                            styles.billingChip,
-                            isSelected && styles.billingChipSelected,
-                          ]}
-                          onPress={() => {
-                            if (isMore) {
-                              setActivePicker('moreBilling');
-                            } else {
-                              onChange(type);
-                            }
-                          }}
-                          activeOpacity={0.7}>
-                          <AppText
-                            variant="label"
-                            style={[
-                              styles.billingChipText,
-                              isSelected && styles.billingChipTextSelected,
-                            ]}>
-                            {displayLabel}
-                          </AppText>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-              />
-            </View>
-
-            {/* Dynamic Billing Rate & Quantity Inputs for Non-Fixed Types */}
-            {!isFixedBilling ? (
-              <View style={styles.row}>
-                {/* Rate per Unit */}
-                <View style={[styles.fieldContainer, styles.rowField]}>
-                  <View style={styles.floatingLabel}>
-                    <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                      Rate / {currentBillingConfig.unitName}
-                    </AppText>
-                  </View>
-                  <View style={styles.inputWithSuffix}>
-                    <TextInput
-                      value={formValues.billingRate}
-                      onChangeText={handleRateChange}
-                      placeholder="0.00"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="numeric"
-                      style={styles.flexInput}
-                    />
-                    <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
-                      ₹
-                    </AppText>
-                  </View>
-                </View>
-
-                {/* Total Quantity */}
-                <View style={[styles.fieldContainer, styles.rowField]}>
-                  <View style={styles.floatingLabel}>
-                    <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                      Total {currentBillingConfig.unitName}s
-                    </AppText>
-                  </View>
-                  <View style={styles.inputWithSuffix}>
-                    <TextInput
-                      value={formValues.billingQuantity}
-                      onChangeText={handleQuantityChange}
-                      placeholder="0"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="numeric"
-                      style={styles.flexInput}
-                    />
-                  </View>
-                </View>
-              </View>
-            ) : null}
-
-            {/* Party Freight Amount (Calculated / Editable) */}
-            <Controller
-              control={control}
-              name="freightAmount"
-              render={({field: {value, onChange}}) => (
-                <View style={styles.fieldContainer}>
-                  <View style={styles.floatingLabel}>
-                    <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                      Party Freight Amount {!isFixedBilling ? '(Auto-calculated)' : ''}
-                    </AppText>
-                  </View>
-                  <View style={styles.inputWithSuffix}>
-                    <TextInput
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="Party Freight Amount"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="numeric"
-                      style={[styles.flexInput, !isFixedBilling && styles.autoCalculatedInput]}
-                    />
-                    <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
-                      ₹
-                    </AppText>
-                  </View>
-                  {errors.freightAmount ? (
-                    <AppText variant="caption" color="danger">
-                      {errors.freightAmount.message}
-                    </AppText>
-                  ) : null}
-                </View>
-              )}
-            />
-
-            {/* Supplier Billing Section (Shown when Market truck is selected) */}
-            {isMarketTruck ? (
-              <>
-                <View style={styles.billingSection}>
-                  <View style={styles.billingHeader}>
-                    <AppText variant="body" color="textMuted" style={styles.billingLabel}>
-                      Supplier Billing Type
-                    </AppText>
-                    <Icon name="information-outline" size={16} color={colors.textMuted} />
-                  </View>
-
-                  <Controller
-                    control={control}
-                    name="supplierBillingType"
-                    render={({field: {value, onChange}}) => (
-                      <View style={styles.billingChipsRow}>
-                        {PRIMARY_BILLING_TYPES.map(type => {
-                          const isMore = type === 'More';
-                          const isSelected = isMore
-                            ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
-                            : value === type;
-
-                          const displayLabel = isMore
-                            ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
-                              ? `${value} ▾`
-                              : 'More ▾'
-                            : type;
-
-                          return (
-                            <TouchableOpacity
-                              key={`supplier-${type}`}
-                              style={[
-                                styles.billingChip,
-                                isSelected && styles.supplierBillingChipSelected,
-                              ]}
-                              onPress={() => {
-                                if (isMore) {
-                                  setActivePicker('moreSupplierBilling');
-                                } else {
-                                  onChange(type);
-                                }
-                              }}
-                              activeOpacity={0.7}>
-                              <AppText
-                                variant="label"
-                                style={[
-                                  styles.billingChipText,
-                                  isSelected && styles.supplierBillingChipTextSelected,
-                                ]}>
-                                {displayLabel}
-                              </AppText>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    )}
-                  />
-                </View>
-
-                {/* Dynamic Supplier Billing Rate & Quantity Inputs for Non-Fixed Types */}
-                {!isFixedSupplierBilling ? (
-                  <View style={styles.row}>
-                    {/* Supplier Rate per Unit */}
-                    <View style={[styles.fieldContainer, styles.rowField]}>
-                      <View style={styles.floatingLabel}>
-                        <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                          Supplier Rate / {currentSupplierBillingConfig.unitName}
-                        </AppText>
-                      </View>
-                      <View style={styles.inputWithSuffix}>
-                        <TextInput
-                          value={formValues.supplierBillingRate}
-                          onChangeText={handleSupplierRateChange}
-                          placeholder="0.00"
-                          placeholderTextColor={colors.textMuted}
-                          keyboardType="numeric"
-                          style={styles.flexInput}
-                        />
-                        <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
-                          ₹
-                        </AppText>
-                      </View>
-                    </View>
-
-                    {/* Total Quantity */}
-                    <View style={[styles.fieldContainer, styles.rowField]}>
-                      <View style={styles.floatingLabel}>
-                        <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                          Total {currentSupplierBillingConfig.unitName}s
-                        </AppText>
-                      </View>
-                      <View style={styles.inputWithSuffix}>
-                        <TextInput
-                          value={formValues.supplierBillingQuantity}
-                          onChangeText={handleSupplierQuantityChange}
-                          placeholder="0"
-                          placeholderTextColor={colors.textMuted}
-                          keyboardType="numeric"
-                          style={styles.flexInput}
-                        />
-                      </View>
-                    </View>
-                  </View>
-                ) : null}
-
-                {/* Truck Hire Cost Field */}
+                {/* Destination */}
                 <Controller
                   control={control}
-                  name="truckHireCost"
+                  name="destination"
+                  render={({field: {value}}) => (
+                    <TouchableOpacity
+                      style={[styles.fieldContainer, styles.rowField]}
+                      onPress={() => setActiveLocationPicker('destination')}
+                      activeOpacity={0.7}>
+                      <View style={styles.dropdownInput}>
+                        <AppText
+                          variant="body"
+                          style={[styles.inputText, !value && styles.placeholderText]}
+                          numberOfLines={1}>
+                          {value || 'Destination'}
+                        </AppText>
+                        <Icon name="flag-checkered" size={20} color={colors.primary} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+
+              {/* Party Billing Type */}
+              <View style={styles.billingSection}>
+                <View style={styles.billingHeader}>
+                  <AppText variant="body" color="textMuted" style={styles.billingLabel}>
+                    Party Billing Type
+                  </AppText>
+                  <Icon name="information-outline" size={16} color={colors.textMuted} />
+                </View>
+
+                <Controller
+                  control={control}
+                  name="billingType"
                   render={({field: {value, onChange}}) => (
-                    <View style={styles.fieldContainer}>
-                      <View style={styles.floatingLabel}>
-                        <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                          Truck Hire Cost {!isFixedSupplierBilling ? '(Auto-calculated)' : ''}
-                        </AppText>
-                      </View>
-                      <View style={styles.inputWithSuffix}>
-                        <TextInput
-                          value={value}
-                          onChangeText={onChange}
-                          placeholder="Truck Hire Cost"
-                          placeholderTextColor={colors.textMuted}
-                          keyboardType="numeric"
-                          style={[styles.flexInput, !isFixedSupplierBilling && styles.autoCalculatedInput]}
-                        />
-                        <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
-                          ₹
-                        </AppText>
-                      </View>
+                    <View style={styles.billingChipsRow}>
+                      {PRIMARY_BILLING_TYPES.map(type => {
+                        const isMore = type === 'More';
+                        const isSelected = isMore
+                          ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
+                          : value === type;
+
+                        const displayLabel = isMore
+                          ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
+                            ? `${value} ▾`
+                            : 'More ▾'
+                          : type;
+
+                        return (
+                          <TouchableOpacity
+                            key={type}
+                            style={[
+                              styles.billingChip,
+                              isSelected && styles.billingChipSelected,
+                            ]}
+                            onPress={() => {
+                              if (isMore) {
+                                setActivePicker('moreBilling');
+                              } else {
+                                onChange(type);
+                              }
+                            }}
+                            activeOpacity={0.7}>
+                            <AppText
+                              variant="label"
+                              style={[
+                                styles.billingChipText,
+                                isSelected && styles.billingChipTextSelected,
+                              ]}>
+                              {displayLabel}
+                            </AppText>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   )}
                 />
-              </>
-            ) : null}
+              </View>
 
-            {/* Trip Start Date (Calendar Picker) */}
-            <Controller
-              control={control}
-              name="tripStartDate"
-              render={({field: {value}}) => (
-                <TouchableOpacity
-                  style={styles.fieldContainer}
-                  onPress={() => setDatePickerVisible(true)}
-                  activeOpacity={0.7}>
-                  <View style={styles.floatingLabel}>
-                    <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                      Trip Start Date
-                    </AppText>
+              {/* Dynamic Billing Rate & Quantity Inputs for Non-Fixed Types */}
+              {!isFixedBilling ? (
+                <View style={styles.row}>
+                  {/* Rate per Unit */}
+                  <View style={[styles.fieldContainer, styles.rowField]}>
+                    <View style={styles.floatingLabel}>
+                      <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                        Rate / {currentBillingConfig.unitName}
+                      </AppText>
+                    </View>
+                    <View style={styles.inputWithSuffix}>
+                      <TextInput
+                        value={formValues.billingRate}
+                        onChangeText={handleRateChange}
+                        placeholder="0.00"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="numeric"
+                        style={styles.flexInput}
+                      />
+                      <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
+                        ₹
+                      </AppText>
+                    </View>
                   </View>
-                  <View style={styles.inputWithSuffix}>
-                    <AppText
-                      variant="body"
-                      style={[styles.flexInputText, !value && styles.placeholderText]}>
-                      {value || 'Select Start Date'}
-                    </AppText>
-                    <Icon name="calendar-month-outline" size={22} color={colors.primary} />
+
+                  {/* Total Quantity */}
+                  <View style={[styles.fieldContainer, styles.rowField]}>
+                    <View style={styles.floatingLabel}>
+                      <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                        Total {currentBillingConfig.unitName}s
+                      </AppText>
+                    </View>
+                    <View style={styles.inputWithSuffix}>
+                      <TextInput
+                        value={formValues.billingQuantity}
+                        onChangeText={handleQuantityChange}
+                        placeholder="0"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="numeric"
+                        style={styles.flexInput}
+                      />
+                    </View>
                   </View>
-                </TouchableOpacity>
-              )}
-            />
+                </View>
+              ) : null}
 
-            {/* Add More Details Button */}
-            <View style={styles.moreDetailsRow}>
-              <TouchableOpacity
-                style={styles.addMoreDetailsBtn}
-                onPress={() => setMoreDetailsVisible(true)}
-                activeOpacity={0.7}>
-                <AppText variant="label" style={styles.addMoreDetailsText}>
-                  Add More Details
-                </AppText>
-              </TouchableOpacity>
-            </View>
-
-          </View>
-        </ScrollView>
-
-        {/* Bottom SMS Checkbox & Save Trip Button */}
-        <View style={styles.footerContainer}>
-          {/* SMS Checkbox */}
-          <View style={styles.smsBox}>
-            <AppText variant="body" color="textMuted" style={styles.smsLabel}>
-              Send SMS to :
-            </AppText>
-            <TouchableOpacity
-              style={styles.checkboxRow}
-              onPress={() => setSendSmsToParty(!sendSmsToParty)}
-              activeOpacity={0.7}>
-              <Icon
-                name={sendSmsToParty ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                size={20}
-                color={sendSmsToParty ? colors.primary : colors.textMuted}
+              {/* Party Freight Amount (Calculated / Editable) */}
+              <Controller
+                control={control}
+                name="freightAmount"
+                render={({field: {value, onChange}}) => (
+                  <View style={styles.fieldContainer}>
+                    <View style={styles.floatingLabel}>
+                      <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                        Party Freight Amount {!isFixedBilling ? '(Auto-calculated)' : ''}
+                      </AppText>
+                    </View>
+                    <View style={styles.inputWithSuffix}>
+                      <TextInput
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="Party Freight Amount"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="numeric"
+                        style={[styles.flexInput, !isFixedBilling && styles.autoCalculatedInput]}
+                      />
+                      <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
+                        ₹
+                      </AppText>
+                    </View>
+                    {errors.freightAmount ? (
+                      <AppText variant="caption" color="danger">
+                        {errors.freightAmount.message}
+                      </AppText>
+                    ) : null}
+                  </View>
+                )}
               />
-              <AppText variant="body" style={styles.checkboxLabel}>
-                Party
-              </AppText>
-            </TouchableOpacity>
 
-            {isMarketTruck ? (
+              {/* Supplier Billing Section (Shown when Market truck is selected) */}
+              {isMarketTruck ? (
+                <>
+                  <View style={styles.billingSection}>
+                    <View style={styles.billingHeader}>
+                      <AppText variant="body" color="textMuted" style={styles.billingLabel}>
+                        Supplier Billing Type
+                      </AppText>
+                      <Icon name="information-outline" size={16} color={colors.textMuted} />
+                    </View>
+
+                    <Controller
+                      control={control}
+                      name="supplierBillingType"
+                      render={({field: {value, onChange}}) => (
+                        <View style={styles.billingChipsRow}>
+                          {PRIMARY_BILLING_TYPES.map(type => {
+                            const isMore = type === 'More';
+                            const isSelected = isMore
+                              ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
+                              : value === type;
+
+                            const displayLabel = isMore
+                              ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
+                                ? `${value} ▾`
+                                : 'More ▾'
+                              : type;
+
+                            return (
+                              <TouchableOpacity
+                                key={`supplier-${type}`}
+                                style={[
+                                  styles.billingChip,
+                                  isSelected && styles.supplierBillingChipSelected,
+                                ]}
+                                onPress={() => {
+                                  if (isMore) {
+                                    setActivePicker('moreSupplierBilling');
+                                  } else {
+                                    onChange(type);
+                                  }
+                                }}
+                                activeOpacity={0.7}>
+                                <AppText
+                                  variant="label"
+                                  style={[
+                                    styles.billingChipText,
+                                    isSelected && styles.supplierBillingChipTextSelected,
+                                  ]}>
+                                  {displayLabel}
+                                </AppText>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      )}
+                    />
+                  </View>
+
+                  {/* Dynamic Supplier Billing Rate & Quantity Inputs for Non-Fixed Types */}
+                  {!isFixedSupplierBilling ? (
+                    <View style={styles.row}>
+                      {/* Supplier Rate per Unit */}
+                      <View style={[styles.fieldContainer, styles.rowField]}>
+                        <View style={styles.floatingLabel}>
+                          <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                            Supplier Rate / {currentSupplierBillingConfig.unitName}
+                          </AppText>
+                        </View>
+                        <View style={styles.inputWithSuffix}>
+                          <TextInput
+                            value={formValues.supplierBillingRate}
+                            onChangeText={handleSupplierRateChange}
+                            placeholder="0.00"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="numeric"
+                            style={styles.flexInput}
+                          />
+                          <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
+                            ₹
+                          </AppText>
+                        </View>
+                      </View>
+
+                      {/* Total Quantity */}
+                      <View style={[styles.fieldContainer, styles.rowField]}>
+                        <View style={styles.floatingLabel}>
+                          <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                            Total {currentSupplierBillingConfig.unitName}s
+                          </AppText>
+                        </View>
+                        <View style={styles.inputWithSuffix}>
+                          <TextInput
+                            value={formValues.supplierBillingQuantity}
+                            onChangeText={handleSupplierQuantityChange}
+                            placeholder="0"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="numeric"
+                            style={styles.flexInput}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  ) : null}
+
+                  {/* Truck Hire Cost Field */}
+                  <Controller
+                    control={control}
+                    name="truckHireCost"
+                    render={({field: {value, onChange}}) => (
+                      <View style={styles.fieldContainer}>
+                        <View style={styles.floatingLabel}>
+                          <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                            Truck Hire Cost {!isFixedSupplierBilling ? '(Auto-calculated)' : ''}
+                          </AppText>
+                        </View>
+                        <View style={styles.inputWithSuffix}>
+                          <TextInput
+                            value={value}
+                            onChangeText={onChange}
+                            placeholder="Truck Hire Cost"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="numeric"
+                            style={[styles.flexInput, !isFixedSupplierBilling && styles.autoCalculatedInput]}
+                          />
+                          <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
+                            ₹
+                          </AppText>
+                        </View>
+                      </View>
+                    )}
+                  />
+                </>
+              ) : null}
+
+              {/* Trip Start Date (Calendar Picker) */}
+              <Controller
+                control={control}
+                name="tripStartDate"
+                render={({field: {value}}) => (
+                  <TouchableOpacity
+                    style={styles.fieldContainer}
+                    onPress={() => setDatePickerVisible(true)}
+                    activeOpacity={0.7}>
+                    <View style={styles.floatingLabel}>
+                      <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                        Trip Start Date
+                      </AppText>
+                    </View>
+                    <View style={styles.inputWithSuffix}>
+                      <AppText
+                        variant="body"
+                        style={[styles.flexInputText, !value && styles.placeholderText]}>
+                        {value || 'Select Start Date'}
+                      </AppText>
+                      <Icon name="calendar-month-outline" size={22} color={colors.primary} />
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+
+              {/* Add More Details Button */}
+              <View style={styles.moreDetailsRow}>
+                <TouchableOpacity
+                  style={styles.addMoreDetailsBtn}
+                  onPress={() => setMoreDetailsVisible(true)}
+                  activeOpacity={0.7}>
+                  <AppText variant="label" style={styles.addMoreDetailsText}>
+                    Add More Details
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+
+            </View>
+          </ScrollView>
+
+          {/* Bottom SMS Checkbox & Save Trip Button */}
+          <View style={styles.footerContainer}>
+            {/* SMS Checkbox */}
+            <View style={styles.smsBox}>
+              <AppText variant="body" color="textMuted" style={styles.smsLabel}>
+                Send SMS to :
+              </AppText>
               <TouchableOpacity
-                style={[styles.checkboxRow, {marginLeft: spacing.md}]}
-                onPress={() => setValue('sendSmsToSupplier', !formValues.sendSmsToSupplier)}
+                style={styles.checkboxRow}
+                onPress={() => setSendSmsToParty(!sendSmsToParty)}
                 activeOpacity={0.7}>
                 <Icon
-                  name={formValues.sendSmsToSupplier ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                  name={sendSmsToParty ? 'checkbox-marked' : 'checkbox-blank-outline'}
                   size={20}
-                  color={formValues.sendSmsToSupplier ? '#EA580C' : colors.textMuted}
+                  color={sendSmsToParty ? colors.primary : colors.textMuted}
                 />
                 <AppText variant="body" style={styles.checkboxLabel}>
-                  Supplier
+                  Party
                 </AppText>
               </TouchableOpacity>
-            ) : null}
-          </View>
 
-          {/* Save Button */}
-          <AppButton
-            title={isPending ? 'Saving...' : 'Save Trip'}
-            onPress={handleSubmit(onSubmit)}
-            disabled={isPending || !formValues.partyName || !formValues.truckNumber || !isValid}
-            style={styles.saveTripBtn}
-          />
+              {isMarketTruck ? (
+                <TouchableOpacity
+                  style={[styles.checkboxRow, {marginLeft: spacing.md}]}
+                  onPress={() => setValue('sendSmsToSupplier', !formValues.sendSmsToSupplier)}
+                  activeOpacity={0.7}>
+                  <Icon
+                    name={formValues.sendSmsToSupplier ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                    size={20}
+                    color={formValues.sendSmsToSupplier ? '#EA580C' : colors.textMuted}
+                  />
+                  <AppText variant="body" style={styles.checkboxLabel}>
+                    Supplier
+                  </AppText>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Save Button */}
+            <AppButton
+              title={isPending ? 'Saving...' : 'Save Trip'}
+              onPress={handleSubmit(onSubmit)}
+              disabled={isPending || !formValues.partyName || !formValues.truckNumber || !isValid}
+              style={styles.saveTripBtn}
+            />
+          </View>
         </View>
 
         {/* Selection Picker Modals */}
@@ -1130,6 +1133,12 @@ const styles = StyleSheet.create({
   },
   youtubeBtn: {
     padding: spacing.xs,
+  },
+  bodyContainer: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
     padding: spacing.md,

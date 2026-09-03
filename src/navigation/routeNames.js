@@ -23,8 +23,6 @@ export const routes = {
   trucksList: 'TrucksList',
   addTruck: 'AddTruck',
   tripsList: 'TripsList',
-  trucksList: 'TrucksList',
-  trucks: 'TrucksList',
   addTrip: 'AddTrip',
   tripDetails: 'TripDetails',
   tripProgress: 'TripProgress',

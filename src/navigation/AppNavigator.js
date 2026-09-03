@@ -45,11 +45,6 @@ export default function AppNavigator() {
           options={{title: 'Parties'}}
         />
         <Stack.Screen
-          name={routes.trucksList}
-          component={TrucksListScreen}
-          options={{headerShown: false}}
-        />
-        <Stack.Screen
           name={routes.tripsList}
           component={TripsListScreen}
           options={{title: 'Trips'}}
