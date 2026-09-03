@@ -21,6 +21,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/company/send-otp', [CompanyController::class, 'sendOtp']);
 Route::post('/company/verify-otp', [CompanyController::class, 'verifyOtp']);
+
 Route::middleware('auth:sanctum')->group(function () {
 Route::apiResource('drivers', DriverController::class);
 Route::apiResource('parties', PartyController::class);

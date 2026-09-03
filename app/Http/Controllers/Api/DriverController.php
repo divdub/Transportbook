@@ -12,7 +12,8 @@ class DriverController extends Controller
      */
     public function index()
     {
-         $drivers = Driver::orderBy('driverid', 'desc')->get();
+          $user = $request->user();
+     $drivers = Driver::where('companyid',$user->companyid)->where('status',1)->orderBy('driverid', 'desc')->get();
         return response()->json([ 'status' => true, 'message' => 'Driver list fetched successfully', 
         'data' => $drivers], 200);
     }
@@ -22,9 +23,11 @@ class DriverController extends Controller
      */
     public function store(Request $request)
     {
+        $user = $request->user();
           $validator = Validator::make($request->all(), [
             'drivername'       => 'required|string|max:255',
             'mobile'           => 'required|string|max:20|unique:drivers,mobile',
+             'driverphoto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
        ]);
 
         if ($validator->fails()) {
@@ -34,13 +37,20 @@ class DriverController extends Controller
                 'errors'  => $validator->errors(),
             ], 422);
         }
+$photoPath = null;
 
+        if ($request->hasFile('driverphoto')) {
+            $photoPath = $request->file('driverphoto')
+                ->store('drivers', 'public');
+        }
         $driver = Driver::create([
             'drivername'      => $request->drivername,
             'mobile'          => $request->mobile,
             'opening_balance' => $request->opening_balance,
             'balance_type'    => $request->balance_type,
             'status'          => 1,
+             'driverphoto'     => $photoPath,
+             'companyid' => $user->companyid,
         ]);
 
         return response()->json([
@@ -70,12 +80,30 @@ class DriverController extends Controller
         $driver = Driver::find($id); 
        if (!$driver) { 
         return response()->json([ 'status' => false, 'message' => 'Driver not found' ], 404); }
-         $validator = Validator::make($request->all(), [ 'drivername' => 'required|string|max:255', 'mobile' => 'nullable|string|max:20']);
+         $validator = Validator::make($request->all(), [ 'drivername' => 'required|string|max:255', 'mobile' => 'nullable|string|max:20',
+         'driverphoto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048']);
           if ($validator->fails()) { 
             return response()->json([ 'status' => false, 'message' => 'Validation failed', 'errors' => $validator->errors() ], 422); }
             
-            $driver->update([ 'drivername' => $request->drivername, 'mobile' => $request->mobile, 'opening_balance' => $request->opening_balance ?? $driver->opening_balance, 
-            'balance_type' => $request->balance_type ?? $driver->balance_type, 'status' => $request->status ?? $driver->status, ]); 
+              $data = [
+            'drivername' => $request->drivername,
+            'mobile' => $request->mobile ?? $driver->mobile,
+            'opening_balance' => $request->opening_balance ?? $driver->opening_balance,
+            'balance_type' => $request->balance_type ?? $driver->balance_type,
+            'status' => $request->status ?? $driver->status,
+        ];
+             if ($request->hasFile('driverphoto')) {
+
+            // Delete old photo
+            if ($driver->driverphoto) {
+                Storage::disk('public')->delete($driver->driverphoto);
+            }
+
+            $data['driverphoto'] = $request->file('driverphoto')
+                ->store('drivers', 'public');
+        }
+
+        $driver->update($data);
        return response()->json([ 'status' => true, 'message' => 'Driver updated successfully', 'data' => $driver->fresh() ], 200);
   
     }
@@ -89,7 +117,12 @@ class DriverController extends Controller
         if (!$driver) {
              return response()->json([ 'status' => false,
               'message' => 'Driver not found' ], 404); } 
+          if ($driver->driverphoto) {
+            Storage::disk('public')->delete($driver->driverphoto);
+        }
+
         $driver->delete();
+
          return response()->json([ 'status' => true, 
          'message' => 'Driver deleted successfully' ], 200);
     }
