@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\PartyController;
 use App\Http\Controllers\Api\TruckController;
 use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\TripController;
+use App\Http\Controllers\Api\CityController;
+use App\Http\Controllers\Api\ExpenseController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -20,3 +22,5 @@ Route::apiResource('parties', PartyController::class);
 Route::apiResource('trucks', TruckController::class);
 Route::apiResource('suppliers', SupplierController::class);
 Route::apiResource('trips', TripController::class);
+Route::apiResource('cities', CityController::class);
+Route::apiResource('expenses', ExpenseController::class);
