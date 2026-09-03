@@ -12,6 +12,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppText} from '../../../components/common/AppText';
 import {INDIAN_STATES} from '../../parties/constants/indianStates';
+import {useCitiesQuery} from '../../cities/hooks/useCitiesQuery';
 import {colors, radius, spacing} from '../../../theme';
 
 // Map of major cities per state for quick cascading selection
@@ -61,6 +62,7 @@ export function StateCityPickerModal({
   onSelectLocation,
   onClose,
 }) {
+  const {data: apiCities} = useCitiesQuery();
   const [selectedState, setSelectedState] = useState(null);
   const [search, setSearch] = useState('');
 
@@ -72,25 +74,61 @@ export function StateCityPickerModal({
     return INDIAN_STATES.filter(st => st.toLowerCase().includes(q));
   }, [search]);
 
-  const availableCities = useMemo(() => {
-    if (!selectedState) return COMMON_DEFAULT_CITIES;
-    return CITIES_BY_STATE[selectedState] || COMMON_DEFAULT_CITIES;
-  }, [selectedState]);
+  // Cities come from the backend (cityid + cityname + statename), falling
+  // back to the hardcoded list when the endpoint is unavailable. Duplicate
+  // (name, state) pairs are collapsed.
+  const cityEntries = useMemo(() => {
+    const source = (apiCities && apiCities.length > 0 ? apiCities : []).map(c => ({
+      id: c.id,
+      name: c.name,
+      stateName: c.stateName,
+    }));
+    const seen = new Set();
+    const unique = [];
+    for (const c of source) {
+      const key = `${c.name}|${c.stateName || ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push(c);
+    }
+    return unique;
+  }, [apiCities]);
+
+  // Fallback when there is no backend data to drive the picker.
+  const fallbackCities = useMemo(() => {
+    if (cityEntries.length > 0) return [];
+    return COMMON_DEFAULT_CITIES.map(name => ({id: null, name, stateName: ''}));
+  }, [cityEntries]);
+
+  const citiesForState = useMemo(() => {
+    if (cityEntries.length > 0) {
+      if (!selectedState) return cityEntries;
+      return cityEntries.filter(c => c.stateName && c.stateName === selectedState);
+    }
+    if (!selectedState) return fallbackCities;
+    return (CITIES_BY_STATE[selectedState] || COMMON_DEFAULT_CITIES).map(name => ({
+      id: null,
+      name,
+      stateName: selectedState,
+    }));
+  }, [cityEntries, fallbackCities, selectedState]);
 
   const filteredCities = useMemo(() => {
-    if (!search.trim()) return availableCities;
+    if (!search.trim()) return citiesForState;
     const q = search.trim().toLowerCase();
-    return availableCities.filter(ct => ct.toLowerCase().includes(q));
-  }, [availableCities, search]);
+    return citiesForState.filter(ct => ct.name.toLowerCase().includes(q));
+  }, [citiesForState, search]);
 
   const handleSelectState = state => {
     setSelectedState(state);
     setSearch('');
   };
 
-  const handleSelectCity = city => {
-    const formatted = selectedState ? `${city}, ${selectedState}` : city;
-    onSelectLocation(formatted);
+  const handleSelectCity = cityEntry => {
+    const formatted = cityEntry.stateName
+      ? `${cityEntry.name}, ${cityEntry.stateName}`
+      : cityEntry.name;
+    onSelectLocation({cityname: formatted, cityid: cityEntry.id});
     resetAndClose();
   };
 
@@ -98,7 +136,7 @@ export function StateCityPickerModal({
     if (search.trim()) {
       const city = search.trim();
       const formatted = selectedState ? `${city}, ${selectedState}` : city;
-      onSelectLocation(formatted);
+      onSelectLocation({cityname: formatted, cityid: null});
       resetAndClose();
     }
   };
@@ -110,7 +148,7 @@ export function StateCityPickerModal({
   };
 
   const isExactCityMatch = filteredCities.some(
-    ct => ct.toLowerCase() === search.trim().toLowerCase(),
+    ct => ct.name.toLowerCase() === search.trim().toLowerCase(),
   );
 
   return (
@@ -197,7 +235,7 @@ export function StateCityPickerModal({
             /* Step 2: Select City */
             <FlatList
               data={filteredCities}
-              keyExtractor={(item, index) => `${item}-${index}`}
+              keyExtractor={(item, index) => item.id || `${item.name}-${index}`}
               keyboardShouldPersistTaps="handled"
               ItemSeparatorComponent={Separator}
               contentContainerStyle={styles.listContent}
@@ -220,10 +258,10 @@ export function StateCityPickerModal({
                   activeOpacity={0.7}>
                   <Icon name="city-variant-outline" size={20} color={colors.textMuted} />
                   <AppText variant="body" style={styles.rowText}>
-                    {item}
+                    {item.name}
                   </AppText>
                   <AppText variant="caption" color="textMuted">
-                    {selectedState}
+                    {item.stateName || selectedState}
                   </AppText>
                 </TouchableOpacity>
               )}

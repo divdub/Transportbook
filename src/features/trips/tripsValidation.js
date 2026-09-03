@@ -17,7 +17,9 @@ export const addTripSchema = z.object({
     .optional()
     .or(z.literal('')),
   origin: z.string().trim().optional().or(z.literal('')),
+  originId: z.string().or(z.number()).nullish(),
   destination: z.string().trim().optional().or(z.literal('')),
+  destinationId: z.string().or(z.number()).nullish(),
   billingType: z
     .enum([
       'Fixed',

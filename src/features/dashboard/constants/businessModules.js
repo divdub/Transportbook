@@ -6,7 +6,7 @@ export const businessModules = [
   {key: 'parties', label: 'Parties', icon: 'account-group-outline', route: routes.partiesList},
   {key: 'trucks', label: 'Trucks', icon: 'truck-outline', route: routes.trucksList},
   {key: 'drivers', label: 'Drivers', icon: 'account-tie-outline', route: routes.driversList},
-  {key: 'suppliers', label: 'Suppliers', icon: 'domain', route: null},
+  {key: 'suppliers', label: 'Suppliers', icon: 'domain', route: routes.suppliersList},
   {key: 'expenses', label: 'Expenses', icon: 'receipt', route: null},
   {key: 'payments', label: 'Payments', icon: 'cash-multiple', route: null},
   {key: 'khata', label: 'Khata', icon: 'book-open-page-variant-outline', route: null},

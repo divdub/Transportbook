@@ -110,7 +110,9 @@ export default function AddTripScreen() {
       driverId: null,
       driverPhone: '',
       origin: '',
+      originId: null,
       destination: '',
+      destinationId: null,
       billingType: 'Fixed',
       billingRate: '',
       billingQuantity: '',
@@ -1042,10 +1044,14 @@ export default function AddTripScreen() {
           visible={Boolean(activeLocationPicker)}
           title={activeLocationPicker === 'origin' ? 'Origin' : 'Destination'}
           onSelectLocation={loc => {
+            const cityname = typeof loc === 'string' ? loc : loc.cityname || loc.name || '';
+            const cityid = typeof loc === 'object' ? loc.cityid : null;
             if (activeLocationPicker === 'origin') {
-              setValue('origin', loc, {shouldValidate: true});
+              setValue('origin', cityname, {shouldValidate: true});
+              setValue('originId', Number(cityid) || null);
             } else if (activeLocationPicker === 'destination') {
-              setValue('destination', loc, {shouldValidate: true});
+              setValue('destination', cityname, {shouldValidate: true});
+              setValue('destinationId', Number(cityid) || null);
             }
           }}
           onClose={() => setActiveLocationPicker(null)}

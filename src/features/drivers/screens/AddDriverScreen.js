@@ -3,7 +3,6 @@ import {Controller, useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {StyleSheet, TextInput, TouchableOpacity, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppButton} from '../../../components/common/AppButton';
 import {AppScreen} from '../../../components/common/AppScreen';
 import {AppText} from '../../../components/common/AppText';
@@ -88,8 +87,8 @@ export default function AddDriverScreen() {
 }
 
 const BALANCE_TYPES = [
-  {value: 'has_to_get', label: 'Driver Got', icon: 'trending-down', color: colors.danger},
-  {value: 'has_to_pay', label: 'Driver Gave', icon: 'trending-up', color: colors.success},
+  {value: 'has_to_get', label: 'To Get', color: colors.success},
+  {value: 'has_to_pay', label: 'To Pay', color: colors.danger},
 ];
 
 function BalanceTypeField({control, error}) {
@@ -108,17 +107,20 @@ function BalanceTypeField({control, error}) {
               return (
                 <TouchableOpacity
                   key={option.value}
-                  style={[styles.segment, selected && styles.segmentSelected]}
+                  style={[
+                    styles.segment,
+                    selected && {
+                      backgroundColor: option.color,
+                      borderColor: option.color,
+                    },
+                  ]}
                   onPress={() => onChange(option.value)}
                   activeOpacity={0.7}>
-                  <Icon
-                    name={option.icon}
-                    size={16}
-                    color={selected ? colors.surface : option.color}
-                  />
                   <AppText
-                    variant="label"
-                    style={{color: selected ? colors.surface : colors.text}}>
+                    style={[
+                      styles.segmentLabel,
+                      {color: selected ? colors.surface : colors.text},
+                    ]}>
                     {option.label}
                   </AppText>
                 </TouchableOpacity>
@@ -193,15 +195,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    minHeight: 54,
+    gap: spacing.xs,
+    minHeight: 42,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  segmentSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  segmentLabel: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '600',
+    lineHeight: 20,
+    flexShrink: 0,
+    minWidth: 64,
+    textAlign: 'center',
   },
 });

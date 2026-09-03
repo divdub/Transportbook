@@ -16,41 +16,70 @@ import {EmptyState} from '../../../components/common/EmptyState';
 import {TripCard} from '../components/TripCard';
 import {TripStatusFilter} from '../components/TripStatusFilter';
 import {useTripsQuery} from '../hooks/useTripsQuery';
+import {usePartiesQuery} from '../../parties/hooks/usePartiesQuery';
+import {useTrucksQuery} from '../../trucks/hooks/useTrucksQuery';
+import {useDriversQuery} from '../../drivers/hooks/useDriversQuery';
 import {routes} from '../../../navigation/routeNames';
-import {quickActionSheetController} from '../../quickActions/quickActionSheetController';
 import {colors, radius, spacing} from '../../../theme';
 
 export default function TripsListScreen() {
   const navigation = useNavigation();
   const {data: trips, isLoading, isError, refetch, isRefetching} = useTripsQuery();
+  const {data: parties = []} = usePartiesQuery();
+  const {data: trucks = []} = useTrucksQuery();
+  const {data: drivers = []} = useDriversQuery();
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('All');
 
+  // Backend trips return integer FKs (partyid/truckid/driverid) but not the
+  // display names, so join the reference lists loaded by the shared hooks.
+  const enrichedTrips = useMemo(() => {
+    if (!trips) return [];
+    const partyById = new Map(parties.map(p => [String(p.id), p.name]));
+    const truckById = new Map(trucks.map(t => [String(t.id), t.vehicleNumber]));
+    const driverById = new Map(drivers.map(d => [String(d.id), d.drivername]));
+    return trips.map(trip => ({
+      ...trip,
+      partyName:
+        trip.partyName ||
+        (trip.partyId && partyById.get(trip.partyId)) ||
+        'No Party',
+      truckNumber:
+        trip.truckNumber ||
+        (trip.truckId && truckById.get(trip.truckId)) ||
+        'Unassigned',
+      driverName:
+        trip.driverName ||
+        (trip.driverId && driverById.get(trip.driverId)) ||
+        'Unassigned',
+    }));
+  }, [trips, parties, trucks, drivers]);
+
   // Compute status counts for filter pills
   const statusCounts = useMemo(() => {
-    if (!trips) return {};
-    const counts = {All: trips.length};
-    trips.forEach(trip => {
+    if (!enrichedTrips) return {};
+    const counts = {All: enrichedTrips.length};
+    enrichedTrips.forEach(trip => {
       counts[trip.status] = (counts[trip.status] || 0) + 1;
     });
     return counts;
-  }, [trips]);
+  }, [enrichedTrips]);
 
   // Compute high-level financial summary
   const summaryStats = useMemo(() => {
-    if (!trips || trips.length === 0) {
+    if (!enrichedTrips || enrichedTrips.length === 0) {
       return {totalFreight: 0, activeTrips: 0, pendingBalance: 0};
     }
-    const totalFreight = trips.reduce((acc, t) => acc + (t.freightAmount || 0), 0);
-    const pendingBalance = trips.reduce((acc, t) => acc + (t.pendingBalance || 0), 0);
-    const activeTrips = trips.filter(t => t.status !== 'Settled').length;
+    const totalFreight = enrichedTrips.reduce((acc, t) => acc + (t.freightAmount || 0), 0);
+    const pendingBalance = enrichedTrips.reduce((acc, t) => acc + (t.pendingBalance || 0), 0);
+    const activeTrips = enrichedTrips.filter(t => t.status !== 'Settled').length;
     return {totalFreight, activeTrips, pendingBalance};
-  }, [trips]);
+  }, [enrichedTrips]);
 
   // Filter trips based on search query and selected status
   const filteredTrips = useMemo(() => {
-    if (!trips) return [];
-    let result = trips;
+    if (!enrichedTrips) return [];
+    let result = enrichedTrips;
 
     if (selectedStatus !== 'All') {
       result = result.filter(t => t.status === selectedStatus);
@@ -70,14 +99,14 @@ export default function TripsListScreen() {
     }
 
     return result;
-  }, [trips, selectedStatus, search]);
+  }, [enrichedTrips, selectedStatus, search]);
 
   const handleTripPress = tripId => {
     navigation.navigate(routes.tripDetails, {tripId});
   };
 
   const handleCreateTrip = () => {
-    quickActionSheetController.open();
+    navigation.navigate(routes.addTrip);
   };
 
   return (
@@ -207,6 +236,7 @@ export default function TripsListScreen() {
             <TripCard trip={item} onPress={() => handleTripPress(item.id)} />
           )}
           contentContainerStyle={styles.listContent}
+          style={styles.list}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -220,6 +250,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   screenContent: {
+    flex: 1,
     padding: 0,
   },
   header: {
@@ -312,6 +343,9 @@ const styles = StyleSheet.create({
   actionBtn: {
     minWidth: 160,
     marginTop: spacing.xs,
+  },
+  list: {
+    flex: 1,
   },
   listContent: {
     paddingTop: spacing.xs,
