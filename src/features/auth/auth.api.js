@@ -30,27 +30,33 @@ export const authApi = {
   },
 
 
-  getCurrentUser: async () => {
-    const response = await apiClient.get('/user');
+  getCurrentUser: async (token = null) => {
+    const config = token
+      ? {headers: {Authorization: `Bearer ${token}`}}
+      : undefined;
+    const response = await apiClient.get('/user', config);
     return response.data;
   },
 
   sendOtp: async mobileNumber => {
-    try {
-      const response = await apiClient.post('/send-otp', {mobileNumber});
-      return response.data;
-    } catch {
-      return {success: true};
-    }
+    const response = await apiClient.post('/company/send-otp', {mobile: mobileNumber});
+    return response.data;
   },
 
   verifyOtp: async (mobileNumber, otp) => {
-    try {
-      const response = await apiClient.post('/verify-otp', {mobileNumber, otp});
-      return response.data;
-    } catch {
-      return {verified: true};
+    const response = await apiClient.post('/company/verify-otp', {
+      mobile: mobileNumber,
+      otp,
+    });
+    return response.data;
+  },
+
+  createCompany: async payload => {
+    const response = await apiClient.post('/companies', payload);
+    if (response.data?.success === false) {
+      throw new Error(response.data.message || 'Unable to complete business setup');
     }
+    return response.data;
   },
 };
 

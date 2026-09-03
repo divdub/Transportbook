@@ -20,10 +20,13 @@ export function useMockSignup() {
         if (!token) {
           throw new Error(res.message || 'Registration failed');
         }
+        // A freshly-registered user has no company yet, so they must complete
+        // Business Setup before reaching the main app. companyid becomes set
+        // once a company is registered.
         session = {
           accessToken: token,
           user: user,
-          onboarded: true,
+          onboarded: Boolean(user.companyid),
         };
       } catch (apiError) {
         if (apiError.status || apiError.type === 'validation' || apiError.type === 'authentication') {

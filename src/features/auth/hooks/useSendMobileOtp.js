@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {mockSendMobileOtp} from '../auth.mock';
+import {authApi} from '../auth.api';
 
 export function useSendMobileOtp() {
   const [isSending, setIsSending] = useState(false);
@@ -9,7 +9,7 @@ export function useSendMobileOtp() {
     setIsSending(true);
     setErrorMessage('');
     try {
-      return await mockSendMobileOtp({mobileNumber});
+      return await authApi.sendOtp(mobileNumber);
     } catch (error) {
       setErrorMessage(error?.message || 'Unable to send OTP.');
       throw error;

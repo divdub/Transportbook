@@ -1,7 +1,18 @@
 import {z} from 'zod';
 
 export const loginSchema = z.object({
-  email: z.string().trim().min(1, 'Email or mobile is required'),
+  emailOrMobile: z
+    .string()
+    .trim()
+    .min(1, 'Email or mobile is required')
+    .refine(
+      value => {
+        const isEmail = /.+@.+\..+/.test(value);
+        const isMobile = /^[0-9]{10}$/.test(value);
+        return isEmail || isMobile;
+      },
+      'Enter a valid email or 10-digit mobile number',
+    ),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 

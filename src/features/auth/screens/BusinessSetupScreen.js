@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -14,14 +15,17 @@ import {AppText} from '../../../components/common/AppText';
 import {useAuthStore} from '../../../store/authStore';
 import {useSendMobileOtp} from '../hooks/useSendMobileOtp';
 import {useVerifyMobileOtp} from '../hooks/useVerifyMobileOtp';
+import {useCreateCompany} from '../hooks/useCreateCompany';
 import {colors, radius, spacing} from '../../../theme';
 
 const OTP_LENGTH = 6;
 
 export default function BusinessSetupScreen() {
   const completeOnboarding = useAuthStore(state => state.completeOnboarding);
-  const {sendOtp, isSending} = useSendMobileOtp();
+  const logout = useAuthStore(state => state.logout);
+  const {sendOtp, isSending, errorMessage: sendOtpError} = useSendMobileOtp();
   const {verifyOtp, isVerifying, errorMessage: otpError} = useVerifyMobileOtp();
+  const {createCompany, isCreating, errorMessage: submitError} = useCreateCompany();
 
   const [name, setName] = useState('');
   const [businessName, setBusinessName] = useState('');
@@ -30,6 +34,7 @@ export default function BusinessSetupScreen() {
   const [mobileVerified, setMobileVerified] = useState(false);
   const [digits, setDigits] = useState(Array(OTP_LENGTH).fill(''));
   const inputRefs = useRef([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const otp = digits.join('');
 
@@ -65,9 +70,21 @@ export default function BusinessSetupScreen() {
     }
   };
 
-  const handleComplete = () => {
-    if (!mobileVerified) return;
-    completeOnboarding({name, businessName, mobileNumber, mobileVerified});
+  const handleComplete = async () => {
+    if (!mobileVerified || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await createCompany({
+        ownername: name,
+        companyname: businessName,
+        mobile: mobileNumber,
+      });
+      completeOnboarding({name, businessName, mobileNumber, mobileVerified});
+    } catch {
+      // Error message surfaced via submitError below.
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -83,7 +100,12 @@ export default function BusinessSetupScreen() {
 
           {/* Top Header Bar */}
           <View style={styles.headerBar}>
-            <View style={styles.headerSpacer} />
+            <TouchableOpacity onPress={logout} style={styles.backButton} hitSlop={10}>
+              <Icon name="arrow-left" size={22} color={colors.primary2} />
+              <AppText variant="label" color="primary2" style={styles.backText}>
+                Login
+              </AppText>
+            </TouchableOpacity>
             <AppText variant="title" style={styles.brandTitle}>
               TransportApp
             </AppText>
@@ -105,7 +127,7 @@ export default function BusinessSetupScreen() {
             {/* Input Fields */}
             <View style={styles.formFields}>
               <Field
-                label="Your name"
+                label="Owner name"
                 value={name}
                 onChangeText={setName}
                 placeholder="Full name"
@@ -153,6 +175,11 @@ export default function BusinessSetupScreen() {
                     />
                   )}
                 </View>
+                {sendOtpError ? (
+                  <AppText variant="caption" color="danger" style={styles.otpErrorText}>
+                    {sendOtpError}
+                  </AppText>
+                ) : null}
               </View>
 
               {otpVisible && !mobileVerified ? (
@@ -192,10 +219,15 @@ export default function BusinessSetupScreen() {
             </View>
 
             {/* Primary Action Button */}
+            {submitError ? (
+              <AppText variant="caption" color="danger" style={styles.submitErrorText}>
+                {submitError}
+              </AppText>
+            ) : null}
             <AppButton
-              title="Complete Signup"
+              title={isCreating || isSubmitting ? 'Setting up...' : 'Complete Signup'}
               onPress={handleComplete}
-              disabled={!mobileVerified}
+              disabled={!mobileVerified || isCreating || isSubmitting}
               style={[
                 styles.completeButton,
                 !mobileVerified && styles.completeButtonDisabled,
@@ -249,7 +281,16 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   headerSpacer: {
-    width: 38,
+    width: 62,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 62,
+  },
+  backText: {
+    marginLeft: 4,
+    fontSize: 14,
   },
   brandTitle: {
     fontSize: 22,
@@ -386,6 +427,11 @@ const styles = StyleSheet.create({
   },
   otpErrorText: {
     fontSize: 12,
+  },
+  submitErrorText: {
+    fontSize: 12,
+    marginTop: spacing.md,
+    textAlign: 'center',
   },
   otpBtnRow: {
     alignItems: 'flex-start',

@@ -21,7 +21,7 @@ export function LoginForm({onSwitchToSignup}) {
     formState: {errors},
   } = useForm({
     resolver: zodResolver(loginSchema),
-    defaultValues: {email: '', password: ''},
+    defaultValues: {emailOrMobile: '', password: ''},
   });
 
   return (
@@ -40,12 +40,12 @@ export function LoginForm({onSwitchToSignup}) {
       <View style={styles.formFields}>
         <AuthFormField
           control={control}
-          name="email"
-          label="Email"
-          placeholder="joedoe75@gmail.com"
+          name="emailOrMobile"
+          label="Email or Mobile"
+          placeholder="Email or mobile number"
           keyboardType="email-address"
           autoCapitalize="none"
-          error={errors.email?.message}
+          error={errors.emailOrMobile?.message}
         />
         <AuthFormField
           control={control}

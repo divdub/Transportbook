@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {mockVerifyMobileOtp} from '../auth.mock';
+import {authApi} from '../auth.api';
 
 export function useVerifyMobileOtp() {
   const [isVerifying, setIsVerifying] = useState(false);
@@ -9,7 +9,8 @@ export function useVerifyMobileOtp() {
     setIsVerifying(true);
     setErrorMessage('');
     try {
-      return await mockVerifyMobileOtp({mobileNumber, otp});
+      const result = await authApi.verifyOtp(mobileNumber, otp);
+      return {verified: Boolean(result?.success), ...result};
     } catch (error) {
       setErrorMessage(error?.message || 'Unable to verify OTP.');
       throw error;
