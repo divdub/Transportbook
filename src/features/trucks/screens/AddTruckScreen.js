@@ -51,7 +51,7 @@ export default function AddTruckScreen() {
     try {
       await mutateAsync({
         ...values,
-        supplierId: values.supplierId || undefined,
+        supplierId: values.ownership === 'market' ? values.supplierId || undefined : undefined,
       });
       navigation.goBack();
     } catch {
@@ -67,6 +67,9 @@ export default function AddTruckScreen() {
   const selectOwnership = option => {
     const value = typeof option === 'string' ? option : option.value;
     setValue('ownership', value, {shouldValidate: true});
+    if (value === 'own') {
+      setValue('supplierId', '', {shouldValidate: true});
+    }
   };
 
   const selectSupplier = option => {
@@ -105,13 +108,15 @@ export default function AddTruckScreen() {
           onPress={() => setOwnershipModal(true)}
         />
 
-        <SelectField
-          label="Supplier (market trucks)"
-          placeholder={supplierName || 'Select supplier'}
-          value={supplierName}
-          valueTone={supplierName ? 'text' : 'textMuted'}
-          onPress={() => setSupplierModal(true)}
-        />
+        {ownership === 'market' ? (
+          <SelectField
+            label="Supplier"
+            placeholder={supplierName || 'Select supplier'}
+            value={supplierName}
+            valueTone={supplierName ? 'text' : 'textMuted'}
+            onPress={() => setSupplierModal(true)}
+          />
+        ) : null}
 
         {submitError ? (
           <AppText variant="label" color="danger">
