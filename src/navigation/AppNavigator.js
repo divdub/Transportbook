@@ -6,6 +6,7 @@ import AddPartyScreen from '../features/parties/screens/AddPartyScreen';
 import SelectStateScreen from '../features/parties/screens/SelectStateScreen';
 import DriversListScreen from '../features/drivers/screens/DriversListScreen';
 import AddDriverScreen from '../features/drivers/screens/AddDriverScreen';
+import TrucksListScreen from '../features/trucks/screens/TrucksListScreen';
 import TripsListScreen from '../features/trips/screens/TripsListScreen';
 import AddTripScreen from '../features/trips/screens/AddTripScreen';
 import TripDetailsScreen from '../features/trips/screens/TripDetailsScreen';
@@ -39,6 +40,11 @@ export default function AppNavigator() {
           name={routes.partiesList}
           component={PartiesListScreen}
           options={{title: 'Parties'}}
+        />
+        <Stack.Screen
+          name={routes.trucksList}
+          component={TrucksListScreen}
+          options={{headerShown: false}}
         />
         <Stack.Screen
           name={routes.tripsList}

@@ -103,6 +103,9 @@ export default function AddTripScreen() {
       partyId: null,
       truckNumber: '',
       truckId: null,
+      ownership: 'own',
+      supplierName: '',
+      supplierId: null,
       driverName: '',
       driverId: null,
       driverPhone: '',
@@ -112,6 +115,11 @@ export default function AddTripScreen() {
       billingRate: '',
       billingQuantity: '',
       freightAmount: '',
+      supplierBillingType: 'Fixed',
+      supplierBillingRate: '',
+      supplierBillingQuantity: '',
+      truckHireCost: '',
+      sendSmsToSupplier: false,
       tripStartDate: getFormattedToday(),
       lrNumber: '',
       material: '',
@@ -140,13 +148,20 @@ export default function AddTripScreen() {
     }));
   }, [apiParties, customParties]);
 
-  // Combined Truck Options (carry truckid from the backend)
+  // Combined Truck Options (grouped into MY TRUCKS & MARKET TRUCKS with ownership metadata)
   const truckOptions = useMemo(() => {
     const fromApi = (apiTrucks || []).map(t => ({
       name: t.vehicleNumber,
       label: t.vehicleNumber,
       value: t.vehicleNumber,
       id: t.id || null,
+      ownership: t.ownership || 'own',
+      ownerName: t.ownerName || t.supplierName || '',
+      ownerPhone: t.ownerPhone || t.supplierPhone || '',
+      supplierName: t.supplierName || t.ownerName || '',
+      supplierPhone: t.supplierPhone || t.ownerPhone || '',
+      status: t.status || 'available',
+      sublabel: t.activeTrip?.route || (t.driverName || t.ownerName ? `${t.driverName || t.ownerName}${t.driverPhone || t.ownerPhone ? ` • ${t.driverPhone || t.ownerPhone}` : ''}` : ''),
     }));
     const fromCustom = customTrucks.map(t => {
       const number = typeof t === 'string' ? t : t.vehicleNumber;
@@ -155,15 +170,33 @@ export default function AddTripScreen() {
         label: number,
         value: number,
         id: (typeof t === 'object' && t.id) || null,
+        ownership: (typeof t === 'object' && t.ownership) || 'own',
+        ownerName: (typeof t === 'object' && (t.ownerName || t.supplierName)) || '',
+        supplierName: (typeof t === 'object' && (t.supplierName || t.ownerName)) || '',
+        status: 'available',
       };
     });
     const combined = [...fromCustom, ...fromApi];
     const seen = new Set();
-    return combined.filter(t => {
+    const uniqueTrucks = combined.filter(t => {
       if (seen.has(t.value)) return false;
       seen.add(t.value);
       return true;
     });
+
+    const myTrucks = uniqueTrucks.filter(t => t.ownership === 'own' || t.ownership === 'Own');
+    const marketTrucks = uniqueTrucks.filter(t => t.ownership === 'market' || t.ownership === 'Market');
+
+    const result = [];
+    if (myTrucks.length > 0) {
+      result.push({isHeader: true, title: 'MY TRUCKS'});
+      result.push(...myTrucks);
+    }
+    if (marketTrucks.length > 0) {
+      result.push({isHeader: true, title: 'MARKET TRUCKS'});
+      result.push(...marketTrucks);
+    }
+    return result.length > 0 ? result : uniqueTrucks;
   }, [apiTrucks, customTrucks]);
 
   // Combined Driver Options (carry driverid from the backend)
@@ -225,6 +258,27 @@ export default function AddTripScreen() {
   const handleQuantityChange = val => {
     setValue('billingQuantity', val, {shouldValidate: true});
     calculateFreight(formValues.billingRate, val);
+  };
+
+  // Live Auto-Calculation for Supplier Rate * Quantity
+  const calculateTruckHireCost = useCallback((rateStr, qtyStr) => {
+    const rate = parseFloat(rateStr);
+    const qty = parseFloat(qtyStr);
+    if (!isNaN(rate) && !isNaN(qty) && rate >= 0 && qty >= 0) {
+      const total = rate * qty;
+      const formatted = Number.isInteger(total) ? total.toString() : total.toFixed(2);
+      setValue('truckHireCost', formatted, {shouldValidate: true});
+    }
+  }, [setValue]);
+
+  const handleSupplierRateChange = val => {
+    setValue('supplierBillingRate', val, {shouldValidate: true});
+    calculateTruckHireCost(val, formValues.supplierBillingQuantity);
+  };
+
+  const handleSupplierQuantityChange = val => {
+    setValue('supplierBillingQuantity', val, {shouldValidate: true});
+    calculateTruckHireCost(formValues.supplierBillingRate, val);
   };
 
   // Contacts picker selection handler
@@ -310,6 +364,35 @@ export default function AddTripScreen() {
   const currentBillingConfig = BILLING_CONFIG[formValues.billingType] || BILLING_CONFIG.Fixed;
   const isFixedBilling = formValues.billingType === 'Fixed';
 
+  const selectedTruckObj = useMemo(() => {
+    if (!formValues.truckNumber || !apiTrucks) return null;
+    return apiTrucks.find(t => t.vehicleNumber === formValues.truckNumber);
+  }, [apiTrucks, formValues.truckNumber]);
+
+  const isMarketTruck =
+    formValues.ownership === 'market' ||
+    formValues.ownership === 'Market' ||
+    (selectedTruckObj && (selectedTruckObj.ownership === 'market' || selectedTruckObj.ownership === 'Market'));
+
+  const currentSupplierBillingConfig = BILLING_CONFIG[formValues.supplierBillingType] || BILLING_CONFIG.Fixed;
+  const isFixedSupplierBilling = formValues.supplierBillingType === 'Fixed';
+
+  const supplierOptions = useMemo(() => {
+    const combined = (apiTrucks || [])
+      .map(t => t.supplierName || t.ownerName)
+      .filter(Boolean);
+    const seen = new Set();
+    return combined.filter(name => {
+      if (seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    }).map(name => ({
+      name,
+      label: name,
+      value: name,
+    }));
+  }, [apiTrucks]);
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -368,7 +451,7 @@ export default function AddTripScreen() {
               )}
             />
 
-            {/* Row: Truck No & Driver Name */}
+            {/* Row: Truck No & Driver / Supplier Name */}
             <View style={styles.row}>
               {/* Truck No */}
               <Controller
@@ -396,31 +479,58 @@ export default function AddTripScreen() {
                 )}
               />
 
-              {/* Driver Name */}
-              <Controller
-                control={control}
-                name="driverName"
-                render={({field: {value}}) => (
-                  <TouchableOpacity
-                    style={[styles.fieldContainer, styles.rowField]}
-                    onPress={() => setActivePicker('driver')}
-                    activeOpacity={0.7}>
-                    <View style={styles.floatingLabel}>
-                      <AppText variant="caption" color="textMuted" style={styles.labelText}>
-                        Driver Name
-                      </AppText>
-                    </View>
-                    <View style={styles.dropdownInput}>
-                      <AppText
-                        variant="body"
-                        style={[styles.inputText, !value && styles.placeholderText]}>
-                        {value || 'Optional'}
-                      </AppText>
-                      <Icon name="menu-down" size={22} color={colors.textMuted} />
-                    </View>
-                  </TouchableOpacity>
-                )}
-              />
+              {/* Supplier/Truck Owner (if Market truck) OR Driver Name */}
+              {isMarketTruck ? (
+                <Controller
+                  control={control}
+                  name="supplierName"
+                  render={({field: {value}}) => (
+                    <TouchableOpacity
+                      style={[styles.fieldContainer, styles.rowField]}
+                      onPress={() => setActivePicker('supplier')}
+                      activeOpacity={0.7}>
+                      <View style={styles.floatingLabel}>
+                        <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                          Supplier/Truck Owner
+                        </AppText>
+                      </View>
+                      <View style={styles.dropdownInput}>
+                        <AppText
+                          variant="body"
+                          style={[styles.inputText, styles.boldInput, !value && styles.placeholderText]}>
+                          {value || 'Supplier/Truck Owner'}
+                        </AppText>
+                        <Icon name="menu-down" size={22} color={colors.textMuted} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+              ) : (
+                <Controller
+                  control={control}
+                  name="driverName"
+                  render={({field: {value}}) => (
+                    <TouchableOpacity
+                      style={[styles.fieldContainer, styles.rowField]}
+                      onPress={() => setActivePicker('driver')}
+                      activeOpacity={0.7}>
+                      <View style={styles.floatingLabel}>
+                        <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                          Driver Name
+                        </AppText>
+                      </View>
+                      <View style={styles.dropdownInput}>
+                        <AppText
+                          variant="body"
+                          style={[styles.inputText, !value && styles.placeholderText]}>
+                          {value || 'Optional'}
+                        </AppText>
+                        <Icon name="menu-down" size={22} color={colors.textMuted} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
             </View>
 
             {/* Row: Origin & Destination (Cascading State -> City) */}
@@ -606,6 +716,141 @@ export default function AddTripScreen() {
               )}
             />
 
+            {/* Supplier Billing Section (Shown when Market truck is selected) */}
+            {isMarketTruck ? (
+              <>
+                <View style={styles.billingSection}>
+                  <View style={styles.billingHeader}>
+                    <AppText variant="body" color="textMuted" style={styles.billingLabel}>
+                      Supplier Billing Type
+                    </AppText>
+                    <Icon name="information-outline" size={16} color={colors.textMuted} />
+                  </View>
+
+                  <Controller
+                    control={control}
+                    name="supplierBillingType"
+                    render={({field: {value, onChange}}) => (
+                      <View style={styles.billingChipsRow}>
+                        {PRIMARY_BILLING_TYPES.map(type => {
+                          const isMore = type === 'More';
+                          const isSelected = isMore
+                            ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
+                            : value === type;
+
+                          const displayLabel = isMore
+                            ? !['Fixed', 'Per Tonne', 'Per KG'].includes(value)
+                              ? `${value} ▾`
+                              : 'More ▾'
+                            : type;
+
+                          return (
+                            <TouchableOpacity
+                              key={`supplier-${type}`}
+                              style={[
+                                styles.billingChip,
+                                isSelected && styles.supplierBillingChipSelected,
+                              ]}
+                              onPress={() => {
+                                if (isMore) {
+                                  setActivePicker('moreSupplierBilling');
+                                } else {
+                                  onChange(type);
+                                }
+                              }}
+                              activeOpacity={0.7}>
+                              <AppText
+                                variant="label"
+                                style={[
+                                  styles.billingChipText,
+                                  isSelected && styles.supplierBillingChipTextSelected,
+                                ]}>
+                                {displayLabel}
+                              </AppText>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                  />
+                </View>
+
+                {/* Dynamic Supplier Billing Rate & Quantity Inputs for Non-Fixed Types */}
+                {!isFixedSupplierBilling ? (
+                  <View style={styles.row}>
+                    {/* Supplier Rate per Unit */}
+                    <View style={[styles.fieldContainer, styles.rowField]}>
+                      <View style={styles.floatingLabel}>
+                        <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                          Supplier Rate / {currentSupplierBillingConfig.unitName}
+                        </AppText>
+                      </View>
+                      <View style={styles.inputWithSuffix}>
+                        <TextInput
+                          value={formValues.supplierBillingRate}
+                          onChangeText={handleSupplierRateChange}
+                          placeholder="0.00"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="numeric"
+                          style={styles.flexInput}
+                        />
+                        <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
+                          ₹
+                        </AppText>
+                      </View>
+                    </View>
+
+                    {/* Total Quantity */}
+                    <View style={[styles.fieldContainer, styles.rowField]}>
+                      <View style={styles.floatingLabel}>
+                        <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                          Total {currentSupplierBillingConfig.unitName}s
+                        </AppText>
+                      </View>
+                      <View style={styles.inputWithSuffix}>
+                        <TextInput
+                          value={formValues.supplierBillingQuantity}
+                          onChangeText={handleSupplierQuantityChange}
+                          placeholder="0"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="numeric"
+                          style={styles.flexInput}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Truck Hire Cost Field */}
+                <Controller
+                  control={control}
+                  name="truckHireCost"
+                  render={({field: {value, onChange}}) => (
+                    <View style={styles.fieldContainer}>
+                      <View style={styles.floatingLabel}>
+                        <AppText variant="caption" color="textMuted" style={styles.labelText}>
+                          Truck Hire Cost {!isFixedSupplierBilling ? '(Auto-calculated)' : ''}
+                        </AppText>
+                      </View>
+                      <View style={styles.inputWithSuffix}>
+                        <TextInput
+                          value={value}
+                          onChangeText={onChange}
+                          placeholder="Truck Hire Cost"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="numeric"
+                          style={[styles.flexInput, !isFixedSupplierBilling && styles.autoCalculatedInput]}
+                        />
+                        <AppText variant="body" color="textMuted" style={styles.currencySymbol}>
+                          ₹
+                        </AppText>
+                      </View>
+                    </View>
+                  )}
+                />
+              </>
+            ) : null}
+
             {/* Trip Start Date (Calendar Picker) */}
             <Controller
               control={control}
@@ -667,6 +912,22 @@ export default function AddTripScreen() {
                 Party
               </AppText>
             </TouchableOpacity>
+
+            {isMarketTruck ? (
+              <TouchableOpacity
+                style={[styles.checkboxRow, {marginLeft: spacing.md}]}
+                onPress={() => setValue('sendSmsToSupplier', !formValues.sendSmsToSupplier)}
+                activeOpacity={0.7}>
+                <Icon
+                  name={formValues.sendSmsToSupplier ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                  size={20}
+                  color={formValues.sendSmsToSupplier ? '#EA580C' : colors.textMuted}
+                />
+                <AppText variant="body" style={styles.checkboxLabel}>
+                  Supplier
+                </AppText>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           {/* Save Button */}
@@ -706,11 +967,33 @@ export default function AddTripScreen() {
           onSelect={item => {
             const val = typeof item === 'string' ? item : item.value || item.name;
             const id = typeof item === 'object' ? item.id : null;
+            const ownershipVal = typeof item === 'object' ? (item.ownership || 'own') : 'own';
+            const supplierVal = typeof item === 'object' ? (item.supplierName || item.ownerName || '') : '';
             setValue('truckNumber', val, {shouldValidate: true});
             setValue('truckId', Number(id) || null);
+            setValue('ownership', ownershipVal, {shouldValidate: true});
+            if (supplierVal) {
+              setValue('supplierName', supplierVal, {shouldValidate: true});
+            }
           }}
           onClose={() => setActivePicker(null)}
           placeholder="Search or enter truck no..."
+        />
+
+        {/* Supplier Modal */}
+        <SelectOptionModal
+          visible={activePicker === 'supplier'}
+          title="Select Supplier / Truck Owner"
+          options={supplierOptions}
+          selectedValue={formValues.supplierName}
+          onSelect={item => {
+            const nameVal = typeof item === 'string' ? item : item.value || item.name;
+            const id = typeof item === 'object' ? item.id : null;
+            setValue('supplierName', nameVal, {shouldValidate: true});
+            setValue('supplierId', Number(id) || null);
+          }}
+          onClose={() => setActivePicker(null)}
+          placeholder="Search or enter supplier name..."
         />
 
         {/* Driver Modal */}
@@ -739,6 +1022,17 @@ export default function AddTripScreen() {
           options={ALL_BILLING_TYPES}
           selectedValue={formValues.billingType}
           onSelect={type => setValue('billingType', type, {shouldValidate: true})}
+          onClose={() => setActivePicker(null)}
+          allowCustom={false}
+        />
+
+        {/* More Supplier Billing Types Modal */}
+        <SelectOptionModal
+          visible={activePicker === 'moreSupplierBilling'}
+          title="Select Supplier Billing Type"
+          options={ALL_BILLING_TYPES}
+          selectedValue={formValues.supplierBillingType}
+          onSelect={type => setValue('supplierBillingType', type, {shouldValidate: true})}
           onClose={() => setActivePicker(null)}
           allowCustom={false}
         />
@@ -916,6 +1210,15 @@ const styles = StyleSheet.create({
   },
   billingChipTextSelected: {
     color: colors.primary,
+    fontWeight: '700',
+  },
+  supplierBillingChipSelected: {
+    backgroundColor: '#FFEDD5',
+    borderWidth: 1.5,
+    borderColor: '#EA580C',
+  },
+  supplierBillingChipTextSelected: {
+    color: '#C2410C',
     fontWeight: '700',
   },
   inputWithSuffix: {

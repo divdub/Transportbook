@@ -61,6 +61,26 @@ describe('Trips Module - Phase 2 & 3 (Add Trip & Add More Details)', () => {
     expect(invalidResult.success).toBe(false);
   });
 
+  it('validates addTripSchema with market truck supplier billing fields correctly', () => {
+    const validMarketTrip = {
+      partyName: 'Sainy Logistics',
+      truckNumber: 'GF 56 FG 4555',
+      ownership: 'market',
+      supplierName: 'AAdarshGiri',
+      billingType: 'Fixed',
+      freightAmount: '15000',
+      supplierBillingType: 'Per Tonne',
+      supplierBillingRate: '500',
+      supplierBillingQuantity: '20',
+      truckHireCost: '10000',
+      sendSmsToSupplier: true,
+    };
+    const result = addTripSchema.safeParse(validMarketTrip);
+    expect(result.success).toBe(true);
+    expect(result.data.supplierBillingType).toBe('Per Tonne');
+    expect(result.data.truckHireCost).toBe('10000');
+  });
+
   it('renders AddTripScreen cleanly', () => {
     let tree;
     ReactTestRenderer.act(() => {

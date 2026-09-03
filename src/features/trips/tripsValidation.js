@@ -5,6 +5,9 @@ export const addTripSchema = z.object({
   partyId: z.string().or(z.number()).nullish(),
   truckNumber: z.string().trim().optional().or(z.literal('')),
   truckId: z.string().or(z.number()).nullish(),
+  ownership: z.string().optional().default('own'),
+  supplierName: z.string().trim().optional().or(z.literal('')),
+  supplierId: z.string().or(z.number()).nullish(),
   driverName: z.string().trim().optional().or(z.literal('')),
   driverId: z.string().or(z.number()).nullish(),
   driverPhone: z
@@ -44,6 +47,36 @@ export const addTripSchema = z.object({
     .trim()
     .optional()
     .refine(val => !val || /^\d+(\.\d{1,2})?$/.test(val), 'Enter a valid amount'),
+  supplierBillingType: z
+    .enum([
+      'Fixed',
+      'Per Tonne',
+      'Per KG',
+      'Per Km',
+      'Per Trip',
+      'Per Day',
+      'Per Hour',
+      'Per Litre',
+      'Per Bag',
+      'Per Box',
+    ])
+    .default('Fixed'),
+  supplierBillingRate: z
+    .string()
+    .trim()
+    .optional()
+    .refine(val => !val || /^\d+(\.\d{1,2})?$/.test(val), 'Enter a valid rate'),
+  supplierBillingQuantity: z
+    .string()
+    .trim()
+    .optional()
+    .refine(val => !val || /^\d+(\.\d{1,2})?$/.test(val), 'Enter a valid quantity'),
+  truckHireCost: z
+    .string()
+    .trim()
+    .optional()
+    .refine(val => !val || /^\d+(\.\d{1,2})?$/.test(val), 'Enter a valid amount'),
+  sendSmsToSupplier: z.boolean().default(false),
   tripStartDate: z.string().trim().optional().or(z.literal('')),
   lrNumber: z.string().trim().optional().or(z.literal('')),
   material: z.string().trim().optional().or(z.literal('')),

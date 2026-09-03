@@ -19,6 +19,8 @@ export const routes = {
   driversList: 'DriversList',
   addDriver: 'AddDriver',
   tripsList: 'TripsList',
+  trucksList: 'TrucksList',
+  trucks: 'TrucksList',
   addTrip: 'AddTrip',
   tripDetails: 'TripDetails',
   tripProgress: 'TripProgress',

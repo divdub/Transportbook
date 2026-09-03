@@ -137,24 +137,94 @@ export function SelectOptionModal({
             ItemSeparatorComponent={OptionSeparator}
             contentContainerStyle={styles.listContent}
             renderItem={({item}) => {
+              if (typeof item === 'object' && item.isHeader) {
+                return (
+                  <View style={styles.sectionHeaderRow}>
+                    <AppText variant="caption" style={styles.sectionHeaderText}>
+                      {item.title}
+                    </AppText>
+                  </View>
+                );
+              }
+
               const label = typeof item === 'string' ? item : item.label || item.name;
               const sublabel = typeof item === 'object' ? item.sublabel || item.category : null;
               const value = typeof item === 'string' ? item : item.value || item.name;
               const isSelected = selectedValue === value;
+              const ownership = typeof item === 'object' ? item.ownership : null;
+              const status = typeof item === 'object' ? item.status : null;
+              const isMarket = ownership === 'market' || ownership === 'Market';
+
+              const initials = label && label.length >= 2 ? label.substring(0, 2).toUpperCase() : 'TR';
 
               return (
                 <TouchableOpacity
                   style={[styles.optionRow, isSelected && styles.optionRowSelected]}
                   onPress={() => handleSelect(item)}
                   activeOpacity={0.7}>
+                  {ownership ? (
+                    <View style={styles.avatarCircle}>
+                      <AppText variant="caption" style={styles.avatarText}>
+                        {initials}
+                      </AppText>
+                    </View>
+                  ) : null}
+
                   <View style={styles.optionInfo}>
-                    <AppText
-                      variant="body"
-                      style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                      {label}
-                    </AppText>
+                    <View style={styles.optionTopRow}>
+                      <AppText
+                        variant="body"
+                        style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                        {label}
+                      </AppText>
+
+                      {/* Ownership Badge if available */}
+                      {ownership ? (
+                        <View
+                          style={[
+                            styles.badge,
+                            isMarket ? styles.marketBadge : styles.ownBadge,
+                          ]}>
+                          <AppText style={styles.badgeText}>
+                            {isMarket ? 'Market' : 'Own'}
+                          </AppText>
+                        </View>
+                      ) : null}
+
+                      {/* Status badge if available */}
+                      {status ? (
+                        <View style={styles.statusRow}>
+                          <View
+                            style={[
+                              styles.statusDot,
+                              {
+                                backgroundColor:
+                                  status === 'on_trip' || status === 'On Trip'
+                                    ? '#2563EB'
+                                    : '#16A34A',
+                              },
+                            ]}
+                          />
+                          <AppText
+                            variant="caption"
+                            style={{
+                              color:
+                                status === 'on_trip' || status === 'On Trip'
+                                  ? '#2563EB'
+                                  : '#16A34A',
+                              fontWeight: '600',
+                              fontSize: 12,
+                            }}>
+                            {status === 'on_trip' || status === 'On Trip'
+                              ? 'On Trip'
+                              : 'Available'}
+                          </AppText>
+                        </View>
+                      ) : null}
+                    </View>
+
                     {sublabel ? (
-                      <AppText variant="caption" color="textMuted">
+                      <AppText variant="caption" color="textMuted" style={{marginTop: 2}}>
                         {sublabel}
                       </AppText>
                     ) : null}
@@ -309,5 +379,63 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: spacing['2xl'],
+  },
+  sectionHeaderRow: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    marginTop: spacing.xs,
+  },
+  sectionHeaderText: {
+    fontWeight: '800',
+    color: '#64748B',
+    fontSize: 12,
+    letterSpacing: 0.5,
+  },
+  avatarCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm + 2,
+  },
+  avatarText: {
+    fontWeight: '800',
+    color: '#334155',
+    fontSize: 14,
+  },
+  optionTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 2,
+  },
+  badge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  ownBadge: {
+    backgroundColor: '#2563EB',
+  },
+  marketBadge: {
+    backgroundColor: '#EA580C',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 'auto',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 });

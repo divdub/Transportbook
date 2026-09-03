@@ -4,7 +4,7 @@ import {routes} from '../../../navigation/routeNames';
 // exists — that's the only change needed to make a tile tappable.
 export const businessModules = [
   {key: 'parties', label: 'Parties', icon: 'account-group-outline', route: routes.partiesList},
-  {key: 'trucks', label: 'Trucks', icon: 'truck-outline', route: null},
+  {key: 'trucks', label: 'Trucks', icon: 'truck-outline', route: routes.trucksList},
   {key: 'drivers', label: 'Drivers', icon: 'account-tie-outline', route: routes.driversList},
   {key: 'suppliers', label: 'Suppliers', icon: 'domain', route: null},
   {key: 'expenses', label: 'Expenses', icon: 'receipt', route: null},
