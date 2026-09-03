@@ -10,7 +10,7 @@ class DriverController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
           $user = $request->user();
      $drivers = Driver::where('companyid',$user->companyid)->where('status',1)->orderBy('driverid', 'desc')->get();

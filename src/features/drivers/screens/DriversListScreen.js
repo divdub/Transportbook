@@ -17,19 +17,17 @@ export default function DriversListScreen() {
 
   const filteredDrivers = useMemo(() => {
     if (!drivers) return [];
-    if (!search.trim()) return drivers;
+    const activeDrivers = drivers.filter(d => Number(d.status) === 1);
+    if (!search.trim()) return activeDrivers;
     const query = search.trim().toLowerCase();
-    return drivers.filter(
+    return activeDrivers.filter(
       driver =>
         (driver.drivername && driver.drivername.toLowerCase().includes(query)) ||
         (driver.mobile && driver.mobile.includes(query)),
     );
   }, [drivers, search]);
 
-  const activeCount = useMemo(
-    () => (drivers || []).filter(d => Number(d.status) === 1).length,
-    [drivers],
-  );
+  const activeCount = filteredDrivers.length;
 
   return (
     <AppScreen scroll={false} style={styles.screen} contentStyle={styles.screenContent}>
@@ -39,7 +37,7 @@ export default function DriversListScreen() {
             Drivers
           </AppText>
           <AppText variant="caption" color="textMuted">
-            {drivers ? `${drivers.length} Total Drivers • ${activeCount} Active` : 'Fleet drivers'}
+            {drivers ? `${activeCount} Active Drivers` : 'Fleet drivers'}
           </AppText>
         </View>
         <AppButton

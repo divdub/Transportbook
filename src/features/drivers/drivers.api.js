@@ -1,4 +1,5 @@
 import {apiClient} from '../../services/api/client';
+import {authStorage} from '../../services/storage/authStorage';
 import {mockFetchDrivers, mockCreateDriver} from './drivers.mock';
 
 export function mapDriverFromBackend(item) {
@@ -11,6 +12,7 @@ export function mapDriverFromBackend(item) {
     opening_balance: openingBalance,
     balance_type: item.balance_type || item.balanceType || (openingBalance >= 0 ? 'has_to_pay' : 'has_to_get'),
     status: item.status == null ? 1 : Number(item.status),
+    driverphoto: item.driverphoto || null,
   };
 }
 
@@ -31,56 +33,106 @@ function firstErrorMessage(apiError) {
 
 export const driversApi = {
   getDrivers: async () => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.get('/drivers');
       const list = response.data?.data || response.data;
-      if (Array.isArray(list) && list.length > 0) {
-        return list.map(mapDriverFromBackend);
+      if (Array.isArray(list)) {
+        return list
+          .map(mapDriverFromBackend)
+          .filter(d => d && Number(d.status) === 1);
       }
-    } catch {
-      // Fallback to mock data if backend endpoint is unavailable
+      return [];
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
+      return mockFetchDrivers();
     }
-    return mockFetchDrivers();
   },
 
   getDriverById: async id => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.get(`/drivers/${id}`);
       const raw = response.data?.data || response.data;
       if (raw) {
         return mapDriverFromBackend(raw);
       }
-    } catch {
+      return null;
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
       const all = await mockFetchDrivers();
       return all.find(d => d.id === String(id)) || null;
     }
   },
 
   createDriver: async payload => {
-    const body = {
-      drivername: payload.drivername,
-      mobile: payload.mobile,
-      opening_balance: payload.opening_balance || payload.openingBalance || 0,
-      balance_type: payload.balance_type || payload.balanceType || 'has_to_pay',
-    };
+    const session = await authStorage.getSession();
+    let body;
+    let config = {};
+
+    if (payload.driverphoto) {
+      const formData = new FormData();
+      formData.append('drivername', payload.drivername);
+      formData.append('mobile', payload.mobile);
+      if (payload.opening_balance != null && payload.opening_balance !== '') {
+        formData.append('opening_balance', String(payload.opening_balance));
+      }
+      formData.append('balance_type', payload.balance_type || 'has_to_pay');
+
+      const photoUri = payload.driverphoto;
+      const filename = photoUri.split('/').pop() || 'driver_photo.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      formData.append('driverphoto', {
+        uri: photoUri,
+        name: filename,
+        type,
+      });
+
+      body = formData;
+      config = {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      };
+    } else {
+      body = {
+        drivername: payload.drivername,
+        mobile: payload.mobile,
+        opening_balance: payload.opening_balance || 0,
+        balance_type: payload.balance_type || 'has_to_pay',
+      };
+    }
+
     try {
-      const response = await apiClient.post('/drivers', body);
+      const response = await apiClient.post('/drivers', body, config);
       const raw = response.data?.data || response.data;
       if (raw && (raw.driverid || raw.id)) {
         return mapDriverFromBackend(raw);
       }
       if (response.data?.status === true) {
-        return mapDriverFromBackend({...body, id: `${Date.now()}`});
+        return mapDriverFromBackend({...payload, id: `${Date.now()}`});
       }
       // 2xx/unknown envelope with status false — surface the message.
       throw new Error(firstErrorMessage({response: response}) || 'Driver could not be saved.');
     } catch (apiError) {
-      // Backend answered with an HTTP error (4xx/5xx) — surface it.
       if (apiError?.response || apiError?.status) {
         throw new Error(firstErrorMessage(apiError) || 'Driver could not be saved.');
       }
-      // No response at all (network/timeout) — fall back to mock.
-      return mockCreateDriver(body);
+      if (session?.accessToken) {
+        throw new Error('Unable to reach the server. Please check your connection.');
+      }
+      return mockCreateDriver({
+        drivername: payload.drivername,
+        mobile: payload.mobile,
+        opening_balance: payload.opening_balance || 0,
+        balance_type: payload.balance_type || 'has_to_pay',
+      });
     }
   },
 };

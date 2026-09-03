@@ -1,8 +1,20 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {Controller, useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
-import {StyleSheet, TextInput, TouchableOpacity, View} from 'react-native';
+import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import {
+  Image,
+  Modal,
+  PermissionsAndroid,
+  Platform,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppButton} from '../../../components/common/AppButton';
 import {AppScreen} from '../../../components/common/AppScreen';
 import {AppText} from '../../../components/common/AppText';
@@ -12,6 +24,8 @@ import {colors, radius, spacing, typography} from '../../../theme';
 
 export default function AddDriverScreen() {
   const navigation = useNavigation();
+  const [photoUri, setPhotoUri] = useState(null);
+  const [pickerModalVisible, setPickerModalVisible] = useState(false);
   const {mutateAsync, isPending, error} = useAddDriverMutation();
   const submitError = error?.message || (error ? "Couldn't save this driver. Please try again." : null);
 
@@ -29,11 +43,75 @@ export default function AddDriverScreen() {
     },
   });
 
+  const requestCameraPermission = async () => {
+    if (Platform.OS !== 'android') return true;
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Camera Permission',
+          message: 'TransportApp needs access to your camera to take driver photos.',
+          buttonPositive: 'OK',
+          buttonNegative: 'Cancel',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch {
+      return false;
+    }
+  };
+
+  const takePhoto = async () => {
+    setPickerModalVisible(false);
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) return;
+    try {
+      const result = await launchCamera({
+        mediaType: 'photo',
+        maxWidth: 1024,
+        maxHeight: 1024,
+        quality: 0.8,
+        saveToPhotos: false,
+      });
+      if (result.didCancel || result.errorCode) {
+        return;
+      }
+      const asset = result.assets?.[0];
+      if (asset?.uri) {
+        setPhotoUri(asset.uri);
+      }
+    } catch {
+      // Photo picker cancelled or error ignored
+    }
+  };
+
+  const pickFromGallery = async () => {
+    setPickerModalVisible(false);
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        maxWidth: 1024,
+        maxHeight: 1024,
+        quality: 0.8,
+      });
+      if (result.didCancel || result.errorCode) {
+        return;
+      }
+      const asset = result.assets?.[0];
+      if (asset?.uri) {
+        setPhotoUri(asset.uri);
+      }
+    } catch {
+      // Photo picker cancelled or error ignored
+    }
+  };
+
   const onSubmit = async values => {
     try {
       await mutateAsync({
         ...values,
         opening_balance: values.opening_balance || undefined,
+        driverphoto: photoUri,
       });
       navigation.goBack();
     } catch {
@@ -70,6 +148,12 @@ export default function AddDriverScreen() {
         />
         <BalanceTypeField control={control} error={errors.balance_type?.message} />
 
+        <PhotoField
+          uri={photoUri}
+          onPressUpload={() => setPickerModalVisible(true)}
+          onClear={() => setPhotoUri(null)}
+        />
+
         {submitError ? (
           <AppText variant="label" color="danger">
             {submitError}
@@ -82,7 +166,79 @@ export default function AddDriverScreen() {
           disabled={isPending}
         />
       </View>
+
+      <PhotoPickerModal
+        visible={pickerModalVisible}
+        onClose={() => setPickerModalVisible(false)}
+        onCamera={takePhoto}
+        onGallery={pickFromGallery}
+      />
     </AppScreen>
+  );
+}
+
+function PhotoPickerModal({visible, onClose, onCamera, onGallery}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHeader}>
+                <AppText variant="heading" style={styles.modalTitle}>
+                  Select Driver Photo
+                </AppText>
+                <TouchableOpacity onPress={onClose} style={styles.modalCloseBtn}>
+                  <Icon name="close" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.modalOptions}>
+                <TouchableOpacity
+                  style={styles.modalOptionBtn}
+                  onPress={onCamera}
+                  activeOpacity={0.7}>
+                  <View style={[styles.modalOptionIcon, {backgroundColor: '#EFF6FF'}]}>
+                    <Icon name="camera" size={24} color={colors.primary} />
+                  </View>
+                  <View style={styles.modalOptionText}>
+                    <AppText variant="body" style={styles.modalOptionTitle}>
+                      Take Photo (Camera)
+                    </AppText>
+                    <AppText variant="caption" color="textMuted">
+                      Use camera to capture photo
+                    </AppText>
+                  </View>
+                  <Icon name="chevron-right" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.modalOptionBtn}
+                  onPress={onGallery}
+                  activeOpacity={0.7}>
+                  <View style={[styles.modalOptionIcon, {backgroundColor: '#F0FDF4'}]}>
+                    <Icon name="image-multiple" size={24} color={colors.success} />
+                  </View>
+                  <View style={styles.modalOptionText}>
+                    <AppText variant="body" style={styles.modalOptionTitle}>
+                      Choose from Gallery
+                    </AppText>
+                    <AppText variant="caption" color="textMuted">
+                      Select photo from device library
+                    </AppText>
+                  </View>
+                  <Icon name="chevron-right" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
   );
 }
 
@@ -134,6 +290,50 @@ function BalanceTypeField({control, error}) {
           {error}
         </AppText>
       ) : null}
+    </View>
+  );
+}
+
+function PhotoField({uri, onPressUpload, onClear}) {
+  return (
+    <View style={styles.field}>
+      <AppText variant="label" color="textMuted" style={styles.fieldLabel}>
+        Driver Photo (Optional)
+      </AppText>
+      {uri ? (
+        <View style={styles.photoContainer}>
+          <Image source={{uri}} style={styles.photoPreview} />
+          <View style={styles.photoActions}>
+            <TouchableOpacity style={styles.photoBtn} onPress={onPressUpload} activeOpacity={0.7}>
+              <Icon name="camera-retake-outline" size={16} color={colors.primary} />
+              <AppText variant="caption" style={styles.photoBtnPrimaryText}>
+                Change
+              </AppText>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.photoBtn, styles.photoBtnDanger]} onPress={onClear} activeOpacity={0.7}>
+              <Icon name="trash-can-outline" size={16} color={colors.danger} />
+              <AppText variant="caption" style={styles.photoBtnDangerText}>
+                Remove
+              </AppText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.uploadBox} onPress={onPressUpload} activeOpacity={0.7}>
+          <View style={styles.uploadIconWrap}>
+            <Icon name="camera-plus-outline" size={22} color={colors.primary} />
+          </View>
+          <View style={styles.uploadTextWrap}>
+            <AppText variant="body" style={styles.uploadTitle}>
+              Add Driver Photo (Camera / Gallery)
+            </AppText>
+            <AppText variant="caption" color="textMuted">
+              Take photo with camera or choose from gallery
+            </AppText>
+          </View>
+          <Icon name="chevron-right" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -211,5 +411,130 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     minWidth: 64,
     textAlign: 'center',
+  },
+  photoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  photoPreview: {
+    width: 60,
+    height: 60,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSubtle,
+  },
+  photoActions: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  photoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
+  },
+  photoBtnPrimaryText: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  photoBtnDanger: {
+    borderColor: colors.danger,
+  },
+  photoBtnDangerText: {
+    color: colors.danger,
+    fontWeight: '600',
+  },
+  uploadBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+  },
+  uploadIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadTextWrap: {
+    flex: 1,
+  },
+  uploadTitle: {
+    fontWeight: '600',
+    color: colors.text,
+    fontSize: typography.sizes.sm,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl || 20,
+    borderTopRightRadius: radius.xl || 20,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl || 32,
+    gap: spacing.md,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: spacing.xs,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalCloseBtn: {
+    padding: spacing.xs,
+  },
+  modalOptions: {
+    gap: spacing.sm,
+  },
+  modalOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  modalOptionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalOptionText: {
+    flex: 1,
+  },
+  modalOptionTitle: {
+    fontWeight: '600',
+    color: colors.text,
+    fontSize: 15,
   },
 });
