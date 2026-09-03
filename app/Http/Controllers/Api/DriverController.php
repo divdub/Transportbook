@@ -5,6 +5,8 @@ use App\Models\Driver;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 class DriverController extends Controller
 {
     /**
@@ -26,7 +28,16 @@ class DriverController extends Controller
         $user = $request->user();
           $validator = Validator::make($request->all(), [
             'drivername'       => 'required|string|max:255',
-            'mobile'           => 'required|string|max:20|unique:drivers,mobile',
+              'mobile' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('drivers', 'mobile')
+                    ->where(function ($query) use ($user) {
+                        return $query->where('companyid', $user->companyid);
+                    }),
+            ],
+
              'driverphoto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
        ]);
 

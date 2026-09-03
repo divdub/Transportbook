@@ -13,9 +13,6 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\StateController;
 use App\Http\Controllers\Api\CompanyController;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -23,6 +20,11 @@ Route::post('/company/send-otp', [CompanyController::class, 'sendOtp']);
 Route::post('/company/verify-otp', [CompanyController::class, 'verifyOtp']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    
+Route::get('/user', function (Request $request) {
+    return $request->user();
+})->middleware('auth:sanctum');
+Route::post('/logout', [AuthController::class, 'logout']);
 Route::apiResource('drivers', DriverController::class);
 Route::apiResource('parties', PartyController::class);
 Route::apiResource('trucks', TruckController::class);

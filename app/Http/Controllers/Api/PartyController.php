@@ -6,15 +6,16 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Party;
 use Illuminate\Support\Facades\Validator;
-
+use Illuminate\Validation\Rule;
 class PartyController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-          $parties = Party::orderBy('partyid', 'desc')->get();
+        $user = $request->user();
+          $parties = Party::where('companyid',$user->companyid)->where('status',1)->orderBy('partyid', 'desc')->get();
         return response()->json([ 'status' => true, 'message' => 'Party list fetched successfully', 
         'data' => $parties], 200);
     }
@@ -24,9 +25,18 @@ class PartyController extends Controller
      */
     public function store(Request $request)
     {
+         $user = $request->user();
        $validator = Validator::make($request->all(), [
             'partyname'       => 'required|string|max:255',
-            'mobile'           => 'required|string|max:20|unique:parties,mobile',
+               'mobile' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('parties', 'mobile')
+                    ->where(function ($query) use ($user) {
+                        return $query->where('companyid', $user->companyid);
+                    }),
+            ],
        ]);
 
         if ($validator->fails()) {
@@ -49,6 +59,7 @@ class PartyController extends Controller
             'stateid'          => $request->stateid,
             'pincode'          => $request->pincode,
             'status'          => 1,
+            'companyid' => $user->companyid,
         ]);
 
         return response()->json([

@@ -12,9 +12,10 @@ class TruckController extends Controller
     /**
      * Get all trucks
      */
-    public function index()
+    public function index(Request $request)
     {
-        $trucks = Truck::orderBy('truckid', 'desc')->get();
+        $user = $request->user();
+        $trucks = Truck::where('companyid',$user->companyid)->where('status',1)->orderBy('truckid', 'desc')->get();
 
         return response()->json([
             'status'  => true,

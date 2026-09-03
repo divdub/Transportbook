@@ -6,15 +6,17 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Supplier;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class SupplierController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-       $suppliers = Supplier::orderBy('supplierid', 'desc')->get();
+        $user = $request->user();
+       $suppliers = Supplier::where('companyid',$user->companyid)->where('status',1)->orderBy('supplierid', 'desc')->get();
         return response()->json([ 'status' => true, 'message' => 'Supplier list fetched successfully', 
         'data' => $suppliers ], 200);
     }
@@ -24,9 +26,18 @@ class SupplierController extends Controller
      */
     public function store(Request $request)
     {
+         $user = $request->user();
         $validator = Validator::make($request->all(),
          [ 'suppliername' => 'required|string|max:255', 
-         'mobile' => 'nullable|string|max:20', 
+        'mobile' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('suppliers', 'mobile')
+                    ->where(function ($query) use ($user) {
+                        return $query->where('companyid', $user->companyid);
+                    }),
+            ],
           ]); 
             if ($validator->fails()) { 
                 return response()->json([ 'status' => false,
@@ -39,7 +50,9 @@ class SupplierController extends Controller
                  'cityid' => $request->cityid, 'gstno' => $request->gstno, 
                  'panno' => $request->panno, 
                  'contactperson' => $request->contactperson, 
-                 'status' => $request->status ?? 1, ]); 
+                 'status' => $request->status ?? 1,
+                  'companyid' => $user->companyid,
+                 ]); 
         return response()->json([ 'status' => true,
          'message' => 'Supplier created successfully',
           'data' => $supplier ], 201);
