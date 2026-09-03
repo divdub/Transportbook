@@ -37,8 +37,7 @@ class TripController extends Controller
             'driverid'            => 'nullable|integer',
             'originid'            => 'nullable|integer',
             'destinationid'       => 'nullable|integer',
-
-            'partybillingtype'    => 'nullable|string|max:255',
+             'partybillingtype'    => 'nullable|string|max:255',
 
             'rate'                => 'nullable|numeric',
             'wt'                  => 'nullable|numeric',
@@ -101,6 +100,7 @@ class TripController extends Controller
 
             'material'            => $request->material,
             'remark'              => $request->remark,
+            'tripstatus'          => 'Started' 
         ]);
 
         return response()->json([
@@ -240,5 +240,27 @@ class TripController extends Controller
             'message' => 'Trip deleted successfully'
         ], 200);
     }
+    public function updateStatus(Request $request,$tripid)
+{
+    
+    $trip = Trip::find($tripid);
+
+    if (!$trip) {
+        return response()->json([
+            'status'  => false,
+            'message' => 'Trip not found'
+        ], 404);
+    }
+
+    // Update only status
+    $trip->tripstatus = $request->tripstatus;
+    $trip->save();
+
+    return response()->json([
+        'status'  => true,
+        'message' => 'Trip status updated successfully',
+        'data'    => $trip
+    ], 200);
+}
 }
 ?>
