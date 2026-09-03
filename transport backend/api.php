@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\TripController;
 use App\Http\Controllers\Api\CityController;
 use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\StateController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -24,3 +25,5 @@ Route::apiResource('suppliers', SupplierController::class);
 Route::apiResource('trips', TripController::class);
 Route::apiResource('cities', CityController::class);
 Route::apiResource('expenses', ExpenseController::class);
+Route::apiResource('states', StateController::class);
+Route::patch('/trips/{tripid}/status', [TripController::class, 'updateStatus']);
