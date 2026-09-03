@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,10 @@ import {useTripDetailsQuery} from '../hooks/useTripDetailsQuery';
 import {useUpdateTripStatusMutation} from '../hooks/useUpdateTripStatusMutation';
 import {useAddAdvanceMutation} from '../hooks/useAddAdvanceMutation';
 import {useAddDriverBalanceMutation} from '../hooks/useAddDriverBalanceMutation';
+import {usePartiesQuery} from '../../parties/hooks/usePartiesQuery';
+import {useTrucksQuery} from '../../trucks/hooks/useTrucksQuery';
+import {useDriversQuery} from '../../drivers/hooks/useDriversQuery';
+import {useCitiesQuery} from '../../cities/hooks/useCitiesQuery';
 import {routes} from '../../../navigation/routeNames';
 import {colors, radius, spacing} from '../../../theme';
 
@@ -34,9 +38,42 @@ export default function TripDetailsScreen() {
   const [driverBalanceVisible, setDriverBalanceVisible] = useState(false);
 
   const {data: trip, isLoading, isError, refetch} = useTripDetailsQuery(tripId || 'TRIP-1001');
+  const {data: parties = []} = usePartiesQuery();
+  const {data: trucks = []} = useTrucksQuery();
+  const {data: drivers = []} = useDriversQuery();
+  const {data: cities = []} = useCitiesQuery();
   const {mutateAsync: updateStatus, isPending: isUpdatingStatus} = useUpdateTripStatusMutation();
   const {mutateAsync: addAdvance, isPending: isAddingAdvance} = useAddAdvanceMutation();
   const {mutateAsync: addDriverBalance, isPending: isAddingDriverBalance} = useAddDriverBalanceMutation();
+
+  // Backend trip rows return integer FKs (partyid/truckid/driverid/originid/
+  // destinationid) but not display names, so join the shared reference lists
+  // to resolve them for rendering.
+  const displayTrip = useMemo(() => {
+    if (!trip) return null;
+    const partyById = new Map(parties.map(p => [String(p.id), p.name]));
+    const truckById = new Map(trucks.map(t => [String(t.id), t.vehicleNumber]));
+    const driverById = new Map(drivers.map(d => [String(d.id), d.drivername]));
+    const cityById = new Map(cities.map(c => [String(c.id), c.name]));
+    return {
+      ...trip,
+      partyName:
+        trip.partyName ||
+        (trip.partyId && partyById.get(trip.partyId)) ||
+        'No Party',
+      truckNumber:
+        trip.truckNumber ||
+        (trip.truckId && truckById.get(trip.truckId)) ||
+        'Unassigned',
+      driverName:
+        trip.driverName ||
+        (trip.driverId && driverById.get(trip.driverId)) ||
+        'Unassigned',
+      origin: trip.origin || (trip.originId && cityById.get(trip.originId)) || 'Origin',
+      destination:
+        trip.destination || (trip.destinationId && cityById.get(trip.destinationId)) || 'Destination',
+    };
+  }, [trip, parties, trucks, drivers, cities]);
 
   if (isLoading) {
     return (
@@ -49,7 +86,7 @@ export default function TripDetailsScreen() {
     );
   }
 
-  if (isError || !trip) {
+  if (isError || !displayTrip) {
     return (
       <AppScreen style={styles.centerContainer}>
         <Icon name="alert-circle-outline" size={48} color={colors.danger} />
@@ -63,26 +100,26 @@ export default function TripDetailsScreen() {
 
   const handleNextStatus = async () => {
     const sequence = ['Started', 'Completed', 'POD Received', 'POD Submitted', 'Settled'];
-    const currentIdx = sequence.indexOf(trip.status);
+    const currentIdx = sequence.indexOf(displayTrip.status);
     if (currentIdx < sequence.length - 1) {
       const next = sequence[currentIdx + 1];
-      await updateStatus({id: trip.id, status: next});
+      await updateStatus({id: displayTrip.id, status: next});
     }
   };
 
   const handleSaveAdvance = async data => {
-    await addAdvance({id: trip.id, ...data});
+    await addAdvance({id: displayTrip.id, ...data});
     setAdvanceSheetVisible(false);
   };
 
   const handleSaveDriverBalance = async data => {
-    await addDriverBalance({id: trip.id, ...data});
+    await addDriverBalance({id: displayTrip.id, ...data});
     setDriverBalanceVisible(false);
   };
 
   // Calculations for Profit Tab
-  const totalRevenue = (trip.freightAmount || 0) + (trip.chargesAmount || 0);
-  const totalExpenses = (trip.expenses || []).reduce((acc, exp) => acc + (exp.amount || 0), 0);
+  const totalRevenue = (displayTrip.freightAmount || 0) + (displayTrip.chargesAmount || 0);
+  const totalExpenses = (displayTrip.expenses || []).reduce((acc, exp) => acc + (exp.amount || 0), 0);
   const netProfit = totalRevenue - totalExpenses;
 
   return (
@@ -126,11 +163,11 @@ export default function TripDetailsScreen() {
         <View style={styles.vehicleRow}>
           <Icon name="truck" size={20} color={colors.text} />
           <AppText variant="body" style={styles.truckNumber}>
-            {trip.truckNumber}
+            {displayTrip.truckNumber}
           </AppText>
-          {trip.driverName ? (
+          {displayTrip.driverName ? (
             <AppText variant="caption" color="textMuted" style={styles.driverSubText}>
-              • {trip.driverName}
+              • {displayTrip.driverName}
             </AppText>
           ) : null}
         </View>
@@ -173,12 +210,12 @@ export default function TripDetailsScreen() {
                 <View style={styles.customerNameBlock}>
                   <Icon name="account-circle" size={22} color={colors.primary} />
                   <AppText variant="body" style={styles.customerName}>
-                    {trip.partyName}
+                    {displayTrip.partyName}
                   </AppText>
                 </View>
                 <View style={styles.amountPill}>
                   <AppText variant="label" style={styles.amountPillText}>
-                    ₹{trip.freightAmount.toLocaleString('en-IN')}
+                    ₹{displayTrip.freightAmount.toLocaleString('en-IN')}
                   </AppText>
                 </View>
               </View>
@@ -188,10 +225,10 @@ export default function TripDetailsScreen() {
                 <View style={styles.routeCitiesRow}>
                   <View style={styles.cityBlock}>
                     <AppText variant="body" style={styles.cityName}>
-                      {trip.origin}
+                      {displayTrip.origin}
                     </AppText>
                     <AppText variant="caption" color="textMuted">
-                      {trip.tripDate}
+                      {displayTrip.tripDate}
                     </AppText>
                   </View>
 
@@ -205,11 +242,11 @@ export default function TripDetailsScreen() {
 
                   <View style={[styles.cityBlock, styles.cityBlockRight]}>
                     <AppText variant="body" style={styles.cityName}>
-                      {trip.destination}
+                      {displayTrip.destination}
                     </AppText>
-                    {trip.lrNumber ? (
+                    {displayTrip.lrNumber ? (
                       <AppText variant="caption" color="textMuted">
-                        #{trip.lrNumber}
+                        #{displayTrip.lrNumber}
                       </AppText>
                     ) : null}
                   </View>
@@ -218,9 +255,9 @@ export default function TripDetailsScreen() {
 
               {/* Status Stepper */}
               <TripStatusStepper
-                currentStatus={trip.status}
-                timeline={trip.statusTimeline}
-                onPress={() => navigation.navigate(routes.tripProgress, {tripId: trip.id})}
+                currentStatus={displayTrip.status}
+                timeline={displayTrip.statusTimeline}
+                onPress={() => navigation.navigate(routes.tripProgress, {tripId: displayTrip.id})}
               />
 
               {/* Action Buttons */}
@@ -233,13 +270,13 @@ export default function TripDetailsScreen() {
                   <AppText variant="label" style={styles.completeTripText}>
                     {isUpdatingStatus
                       ? 'Updating...'
-                      : trip.status === 'Started'
+                      : displayTrip.status === 'Started'
                       ? 'Complete Trip'
-                      : trip.status === 'Completed'
+                      : displayTrip.status === 'Completed'
                       ? 'POD Received'
-                      : trip.status === 'POD Received'
+                      : displayTrip.status === 'POD Received'
                       ? 'Submit POD'
-                      : trip.status === 'POD Submitted'
+                      : displayTrip.status === 'POD Submitted'
                       ? 'Mark Settled'
                       : 'Trip Settled'}
                   </AppText>
@@ -250,7 +287,7 @@ export default function TripDetailsScreen() {
                   onPress={() =>
                     Alert.alert(
                       'Trip Bill Summary',
-                      `Freight: ₹${trip.freightAmount}\nPending: ₹${trip.pendingBalance}\nStatus: ${trip.status}`,
+                      `Freight: ₹${displayTrip.freightAmount}\nPending: ₹${displayTrip.pendingBalance}\nStatus: ${displayTrip.status}`,
                     )
                   }
                   activeOpacity={0.7}>
@@ -269,7 +306,7 @@ export default function TripDetailsScreen() {
                 </AppText>
                 <View style={styles.freightEditRow}>
                   <AppText variant="body" style={styles.financialValue}>
-                    ₹{trip.freightAmount.toLocaleString('en-IN')}
+                    ₹{displayTrip.freightAmount.toLocaleString('en-IN')}
                   </AppText>
                   <Icon name="pencil" size={16} color={colors.primary} />
                 </View>
@@ -282,7 +319,7 @@ export default function TripDetailsScreen() {
                     (-) Advance
                   </AppText>
                   <AppText variant="body" style={styles.financialValue}>
-                    ₹{(trip.advanceAmount || 0).toLocaleString('en-IN')}
+                    ₹{(displayTrip.advanceAmount || 0).toLocaleString('en-IN')}
                   </AppText>
                 </View>
                 <TouchableOpacity
@@ -301,7 +338,7 @@ export default function TripDetailsScreen() {
                     (+) Charges
                   </AppText>
                   <AppText variant="body" style={styles.financialValue}>
-                    ₹{(trip.chargesAmount || 0).toLocaleString('en-IN')}
+                    ₹{(displayTrip.chargesAmount || 0).toLocaleString('en-IN')}
                   </AppText>
                 </View>
                 <TouchableOpacity
@@ -322,7 +359,7 @@ export default function TripDetailsScreen() {
                     (-) Payments
                   </AppText>
                   <AppText variant="body" style={styles.financialValue}>
-                    ₹{(trip.paymentsAmount || 0).toLocaleString('en-IN')}
+                    ₹{(displayTrip.paymentsAmount || 0).toLocaleString('en-IN')}
                   </AppText>
                 </View>
                 <TouchableOpacity
@@ -345,7 +382,7 @@ export default function TripDetailsScreen() {
                   Pending Balance
                 </AppText>
                 <AppText variant="heading" style={styles.pendingBalanceValue}>
-                  ₹{(trip.pendingBalance || 0).toLocaleString('en-IN')}
+                  ₹{(displayTrip.pendingBalance || 0).toLocaleString('en-IN')}
                 </AppText>
               </View>
 
@@ -353,7 +390,7 @@ export default function TripDetailsScreen() {
               <View style={styles.bottomFinancialActions}>
                 <TouchableOpacity
                   style={styles.noteBtn}
-                  onPress={() => Alert.alert('Trip Notes', trip.notes || 'No note added.')}>
+                  onPress={() => Alert.alert('Trip Notes', displayTrip.notes || 'No note added.')}>
                   <Icon name="plus" size={16} color={colors.primary} />
                   <AppText variant="label" style={styles.noteBtnText}>
                     Note
@@ -365,7 +402,7 @@ export default function TripDetailsScreen() {
                   onPress={() =>
                     Alert.alert(
                       'Request Money',
-                      `Payment reminder of ₹${trip.pendingBalance} sent to ${trip.partyName}.`,
+                      `Payment reminder of ₹${displayTrip.pendingBalance} sent to ${displayTrip.partyName}.`,
                     )
                   }>
                   <AppText variant="label" style={styles.requestMoneyText}>
@@ -402,10 +439,10 @@ export default function TripDetailsScreen() {
 
               <View style={styles.financialRow}>
                 <AppText variant="body" color="textMuted">
-                  Customer: {trip.partyName}
+                  Customer: {displayTrip.partyName}
                 </AppText>
                 <AppText variant="body" style={styles.financialValue}>
-                  ₹{trip.freightAmount.toLocaleString('en-IN')}
+                  ₹{displayTrip.freightAmount.toLocaleString('en-IN')}
                 </AppText>
               </View>
 
@@ -414,7 +451,7 @@ export default function TripDetailsScreen() {
                   Extra Charges
                 </AppText>
                 <AppText variant="body" style={styles.financialValue}>
-                  ₹{(trip.chargesAmount || 0).toLocaleString('en-IN')}
+                  ₹{(displayTrip.chargesAmount || 0).toLocaleString('en-IN')}
                 </AppText>
               </View>
 
@@ -438,8 +475,8 @@ export default function TripDetailsScreen() {
                 </AppText>
               </View>
 
-              {trip.expenses && trip.expenses.length > 0 ? (
-                trip.expenses.map((exp, idx) => (
+              {displayTrip.expenses && displayTrip.expenses.length > 0 ? (
+                displayTrip.expenses.map((exp, idx) => (
                   <View key={exp.id || idx} style={styles.financialRow}>
                     <AppText variant="body" color="textMuted">
                       {exp.type} ({exp.date})
@@ -504,10 +541,10 @@ export default function TripDetailsScreen() {
                 </View>
                 <View style={styles.driverMeta}>
                   <AppText variant="heading" style={styles.driverName}>
-                    {trip.driverName || 'Unassigned Driver'}
+                    {displayTrip.driverName || 'Unassigned Driver'}
                   </AppText>
                   <AppText variant="caption" color="textMuted">
-                    {trip.driverPhone ? `+91 ${trip.driverPhone}` : 'No phone linked'}
+                    {displayTrip.driverPhone ? `+91 ${displayTrip.driverPhone}` : 'No phone linked'}
                   </AppText>
                 </View>
                 <View style={styles.onTripBadge}>
@@ -524,7 +561,7 @@ export default function TripDetailsScreen() {
                   Current Driver Balance
                 </AppText>
                 <AppText variant="heading" style={styles.driverBalanceAmt}>
-                  ₹{(trip.driverBalance || 0).toLocaleString('en-IN')}
+                  ₹{(displayTrip.driverBalance || 0).toLocaleString('en-IN')}
                 </AppText>
               </View>
 
@@ -545,8 +582,8 @@ export default function TripDetailsScreen() {
                 Driver Advances & Settlements
               </AppText>
 
-              {trip.advances && trip.advances.length > 0 ? (
-                trip.advances.map(adv => (
+              {displayTrip.advances && displayTrip.advances.length > 0 ? (
+                displayTrip.advances.map(adv => (
                   <View key={adv.id} style={styles.driverTxRow}>
                     <View>
                       <AppText variant="body" style={styles.boldText}>
@@ -563,7 +600,7 @@ export default function TripDetailsScreen() {
                 ))
               ) : (
                 <AppText variant="caption" color="textMuted" style={styles.noDataText}>
-                  No advances recorded for this trip.
+                  No advances recorded for this displayTrip.
                 </AppText>
               )}
             </View>
@@ -583,7 +620,7 @@ export default function TripDetailsScreen() {
                   Trip ID
                 </AppText>
                 <AppText variant="body" style={styles.boldText}>
-                  {trip.id}
+                  {displayTrip.id}
                 </AppText>
               </View>
 
@@ -592,7 +629,7 @@ export default function TripDetailsScreen() {
                   LR Number
                 </AppText>
                 <AppText variant="body" style={styles.boldText}>
-                  {trip.lrNumber || 'Not provided'}
+                  {displayTrip.lrNumber || 'Not provided'}
                 </AppText>
               </View>
 
@@ -601,7 +638,7 @@ export default function TripDetailsScreen() {
                   Material
                 </AppText>
                 <AppText variant="body" style={styles.boldText}>
-                  {trip.material || 'General Freight'}
+                  {displayTrip.material || 'General Freight'}
                 </AppText>
               </View>
 
@@ -610,7 +647,7 @@ export default function TripDetailsScreen() {
                   Start KM
                 </AppText>
                 <AppText variant="body" style={styles.boldText}>
-                  {trip.startKm ? `${trip.startKm} KM` : 'Not recorded'}
+                  {displayTrip.startKm ? `${displayTrip.startKm} KM` : 'Not recorded'}
                 </AppText>
               </View>
 
@@ -619,17 +656,17 @@ export default function TripDetailsScreen() {
                   Billing Type
                 </AppText>
                 <AppText variant="body" style={styles.boldText}>
-                  {trip.billingType}
+                  {displayTrip.billingType}
                 </AppText>
               </View>
 
-              {trip.notes ? (
+              {displayTrip.notes ? (
                 <View style={styles.notesBlock}>
                   <AppText variant="caption" color="textMuted">
                     Notes
                   </AppText>
                   <AppText variant="body" style={styles.notesText}>
-                    {trip.notes}
+                    {displayTrip.notes}
                   </AppText>
                 </View>
               ) : null}
@@ -650,7 +687,7 @@ export default function TripDetailsScreen() {
       {/* Add Driver Balance Modal */}
       <AddDriverBalanceSheet
         visible={driverBalanceVisible}
-        driverName={trip.driverName}
+        driverName={displayTrip.driverName}
         onConfirm={handleSaveDriverBalance}
         onClose={() => setDriverBalanceVisible(false)}
         isPending={isAddingDriverBalance}

@@ -19,6 +19,7 @@ import {useTripsQuery} from '../hooks/useTripsQuery';
 import {usePartiesQuery} from '../../parties/hooks/usePartiesQuery';
 import {useTrucksQuery} from '../../trucks/hooks/useTrucksQuery';
 import {useDriversQuery} from '../../drivers/hooks/useDriversQuery';
+import {useCitiesQuery} from '../../cities/hooks/useCitiesQuery';
 import {routes} from '../../../navigation/routeNames';
 import {colors, radius, spacing} from '../../../theme';
 
@@ -28,6 +29,7 @@ export default function TripsListScreen() {
   const {data: parties = []} = usePartiesQuery();
   const {data: trucks = []} = useTrucksQuery();
   const {data: drivers = []} = useDriversQuery();
+  const {data: cities = []} = useCitiesQuery();
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('All');
 
@@ -38,6 +40,7 @@ export default function TripsListScreen() {
     const partyById = new Map(parties.map(p => [String(p.id), p.name]));
     const truckById = new Map(trucks.map(t => [String(t.id), t.vehicleNumber]));
     const driverById = new Map(drivers.map(d => [String(d.id), d.drivername]));
+    const cityById = new Map(cities.map(c => [String(c.id), c.name]));
     return trips.map(trip => ({
       ...trip,
       partyName:
@@ -52,8 +55,16 @@ export default function TripsListScreen() {
         trip.driverName ||
         (trip.driverId && driverById.get(trip.driverId)) ||
         'Unassigned',
+      origin:
+        trip.origin ||
+        (trip.originId && cityById.get(trip.originId)) ||
+        'Origin',
+      destination:
+        trip.destination ||
+        (trip.destinationId && cityById.get(trip.destinationId)) ||
+        'Destination',
     }));
-  }, [trips, parties, trucks, drivers]);
+  }, [trips, parties, trucks, drivers, cities]);
 
   // Compute status counts for filter pills
   const statusCounts = useMemo(() => {
