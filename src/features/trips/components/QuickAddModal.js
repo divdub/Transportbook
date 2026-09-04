@@ -2,7 +2,6 @@ import React, {useState} from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -47,11 +46,18 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
     ? 'Charge Type Name (e.g. Demurrage)'
     : 'Driver Full Name (e.g. Rajesh Singh)';
 
+  const isPhoneValid = phone.trim().length >= 10 && /^\d+$/.test(phone.trim());
+  const canSave = name.trim() && (!isParty || isPhoneValid);
+
   const handleSave = () => {
-    if (!name.trim()) return;
+    if (!canSave) return;
 
     if (isParty) {
-      onAdd({name: name.trim(), phoneNumber: phone.trim(), category: extra.trim() || 'Transport Partner'});
+      onAdd({
+        name: name.trim(),
+        phoneNumber: phone.trim(),
+        category: extra.trim() || 'Transport Partner',
+      });
     } else if (isTruck) {
       onAdd({vehicleNumber: name.trim().toUpperCase(), vehicleTypeName: extra.trim() || '10 Wheeler (24 Ton)'});
     } else if (isCharge) {
@@ -77,7 +83,8 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
       transparent
       onRequestClose={resetAndClose}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
+        keyboardVerticalOffset={0}
         style={styles.backdrop}>
         <SafeAreaView style={styles.modalOverlay}>
           <View style={styles.cardContainer}>
@@ -116,7 +123,7 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
               {!isTruck && !isCharge ? (
                 <View style={styles.inputContainer}>
                   <AppText variant="caption" color="textMuted" style={styles.inputLabel}>
-                    Mobile Number (Optional)
+                    Mobile Number {isParty ? '* Required' : '(Optional)'}
                   </AppText>
                   <TextInput
                     value={phone}
@@ -127,6 +134,11 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
                     maxLength={10}
                     style={styles.input}
                   />
+                  {isParty && phone.trim() && !isPhoneValid ? (
+                    <AppText variant="caption" color="danger">
+                      Enter a valid 10-digit mobile number
+                    </AppText>
+                  ) : null}
                 </View>
               ) : isTruck ? (
                 <View style={styles.inputContainer}>
@@ -157,7 +169,7 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
               <AppButton
                 title="Add & Select"
                 onPress={handleSave}
-                disabled={!name.trim()}
+                disabled={!canSave}
                 style={styles.saveBtn}
               />
             </View>

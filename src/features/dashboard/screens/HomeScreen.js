@@ -15,9 +15,9 @@ const defaultDashboard = {
   user: {name: 'Rajesh'},
   overview: {
     receivables: 0,
-    trucks: 9,
-    parties: 18,
-    pendingPods: 5,
+    trucks: 0,
+    parties: 0,
+    pendingPods: 0,
   },
 };
 
@@ -109,7 +109,7 @@ function PremiumMetricsGrid({overview, navigation}) {
     {
       key: 'vehicles',
       title: 'Total Vehicles',
-      value: `${overview.trucks || 9} Vehicles`,
+      value: `${overview.trucks || 0} Vehicles`,
       subtitle: 'Fleet in Operation',
       icon: 'truck-outline',
       iconBg: '#EEF2FF',
@@ -129,7 +129,7 @@ function PremiumMetricsGrid({overview, navigation}) {
     {
       key: 'parties',
       title: 'Total Parties',
-      value: `${overview.parties || 18} Parties`,
+      value: `${overview.parties || 0} Parties`,
       subtitle: 'Registered Khata',
       icon: 'account-group-outline',
       iconBg: '#FFF7ED',
@@ -139,7 +139,7 @@ function PremiumMetricsGrid({overview, navigation}) {
     {
       key: 'pods',
       title: 'Pending PODs',
-      value: `${overview.pendingPods || 5} Pending`,
+      value: `${overview.pendingPods || 0} Pending`,
       subtitle: 'PODs to Collect',
       icon: 'file-document-outline',
       iconBg: '#FDF2F8',

@@ -19,6 +19,7 @@ export function AddMoreDetailsSheet({
   initialValues = {},
   onSave,
   onClose,
+  tripNoReadonly = false,
 }) {
   const [lrNumber, setLrNumber] = useState(initialValues.lrNumber || '');
   const [material, setMaterial] = useState(initialValues.material || '');
@@ -81,10 +82,10 @@ export function AddMoreDetailsSheet({
                   </View>
                   <TextInput
                     value={lrNumber}
-                    onChangeText={setLrNumber}
+                    editable={!tripNoReadonly}
                     placeholder="LRN-001"
                     placeholderTextColor={colors.textMuted}
-                    style={styles.input}
+                    style={[styles.input, tripNoReadonly && styles.disabledInput]}
                     autoCapitalize="characters"
                   />
                 </View>
@@ -208,6 +209,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     fontSize: 15,
     color: colors.text,
+  },
+  disabledInput: {
+    backgroundColor: colors.surfaceSubtle,
+    color: colors.textMuted,
   },
   inputWithSuffix: {
     flexDirection: 'row',

@@ -1,5 +1,6 @@
 import React, {useCallback, useMemo, useState} from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -23,10 +24,16 @@ import {DatePickerModal} from '../components/DatePickerModal';
 import {QuickAddModal} from '../components/QuickAddModal';
 import {AddMoreDetailsSheet} from '../sheets/AddMoreDetailsSheet';
 import {useAddTripMutation} from '../hooks/useAddTripMutation';
+import {useAddPartyMutation} from '../../parties/hooks/useAddPartyMutation';
+import {useAddTruckMutation} from '../../trucks/hooks/useAddTruckMutation';
+import {useAddDriverMutation} from '../../drivers/hooks/useAddDriverMutation';
 import {usePartiesQuery} from '../../parties/hooks/usePartiesQuery';
+import {partiesApi} from '../../parties/parties.api';
+import {authStorage} from '../../../services/storage/authStorage';
 import {useTrucksQuery} from '../../trucks/hooks/useTrucksQuery';
 import {useSuppliersQuery} from '../../suppliers/hooks/useSuppliersQuery';
 import {useDriversQuery} from '../../drivers/hooks/useDriversQuery';
+import {useTripsQuery} from '../hooks/useTripsQuery';
 import {addTripSchema} from '../tripsValidation';
 import {routes} from '../../../navigation/routeNames';
 import {colors, radius, spacing} from '../../../theme';
@@ -65,6 +72,20 @@ function getFormattedToday() {
   return `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
 }
 
+// Compute the next trip number in the backend's format (TRIP + 6 digits),
+// matching TripController@store which uses the last tripid + 1.
+function computeNextTripNo(trips) {
+  let max = 0;
+  (trips || []).forEach(t => {
+    const suffix = t.tripno ? String(t.tripno).replace(/^TRIP/i, '') : t.id ? String(t.id).replace(/^TRIP/i, '') : '';
+    const num = parseInt(suffix, 10);
+    if (!isNaN(num) && num > max) {
+      max = num;
+    }
+  });
+  return `TRIP${String(max + 1).padStart(6, '0')}`;
+}
+
 // Resolve a market truck's supplier display name + id. Backend truck rows only
 // carry supplierid (no name), so look the name up in the suppliers list; fall
 // back to the truck's own owner/supplier name when no id is available.
@@ -89,10 +110,14 @@ export function resolveSupplierForTruck(truck, suppliers) {
 export default function AddTripScreen() {
   const navigation = useNavigation();
   const {mutateAsync: createTrip, isPending} = useAddTripMutation();
+  const {mutateAsync: createParty} = useAddPartyMutation();
+  const {mutateAsync: createTruck} = useAddTruckMutation();
+  const {mutateAsync: createDriver} = useAddDriverMutation();
   const {data: apiParties} = usePartiesQuery();
   const {data: apiTrucks} = useTrucksQuery();
   const {data: apiSuppliers} = useSuppliersQuery();
   const {data: apiDrivers} = useDriversQuery();
+  const {data: tripsList = []} = useTripsQuery();
 
   // Custom added items in state
   const [customParties, setCustomParties] = useState([]);
@@ -154,6 +179,9 @@ export default function AddTripScreen() {
   });
 
   const formValues = watch();
+
+  // Next trip number = latest created tripno + 1 (backend generates these).
+  const nextTripNo = useMemo(() => computeNextTripNo(tripsList), [tripsList]);
 
   // Combined Party Options (carry partyid from the backend)
   const partyOptions = useMemo(() => {
@@ -320,21 +348,61 @@ export default function AddTripScreen() {
     }
   };
 
-  // Quick Add handler
-  const handleQuickAdd = addedData => {
-    if (quickAddType === 'party') {
-      setCustomParties(prev => [addedData, ...prev]);
-      setValue('partyName', addedData.name, {shouldValidate: true});
-      setValue('partyId', addedData.id || null);
-    } else if (quickAddType === 'truck') {
-      setCustomTrucks(prev => [addedData, ...prev]);
-      setValue('truckNumber', addedData.vehicleNumber, {shouldValidate: true});
-      setValue('truckId', addedData.id || null);
-    } else if (quickAddType === 'driver') {
-      setCustomDrivers(prev => [addedData, ...prev]);
-      setValue('driverName', addedData.name, {shouldValidate: true});
-      setValue('driverId', addedData.id || null);
-      if (addedData.phone) setValue('driverPhone', addedData.phone, {shouldValidate: true});
+  // Quick Add handler — persists to backend then sets form fields
+  const handleQuickAdd = async addedData => {
+    const session = await authStorage.getSession();
+    const isBackend = Boolean(session?.accessToken);
+    try {
+      if (quickAddType === 'party') {
+        await createParty(addedData);
+        // Refetch parties to get the real backend ID (controller may not return data)
+        const freshParties = await partiesApi.getParties();
+        const match = freshParties.find(
+          p => (p.name || '').toLowerCase() === addedData.name.toLowerCase(),
+        );
+        const id = match?.id || null;
+        setCustomParties(prev => [{...addedData, id}, ...prev]);
+        setValue('partyName', addedData.name, {shouldValidate: true});
+        setValue('partyId', id);
+      } else if (quickAddType === 'truck') {
+        const created = await createTruck(addedData);
+        const id = created?.id || created?.truckid || null;
+        setCustomTrucks(prev => [{...addedData, id}, ...prev]);
+        setValue('truckNumber', addedData.vehicleNumber, {shouldValidate: true});
+        setValue('truckId', id);
+      } else if (quickAddType === 'driver') {
+        const created = await createDriver({
+          drivername: addedData.name,
+          mobile: addedData.phone || null,
+        });
+        const id = created?.id || created?.driverid || null;
+        setCustomDrivers(prev => [{...addedData, id}, ...prev]);
+        setValue('driverName', addedData.name, {shouldValidate: true});
+        setValue('driverId', id);
+        if (addedData.phone) setValue('driverPhone', addedData.phone, {shouldValidate: true});
+      }
+    } catch (error) {
+      // In backend mode a failure means the entity was NOT saved server-side —
+      // surface it instead of silently pretending it worked.
+      if (isBackend) {
+        Alert.alert(
+          'Add failed',
+          error?.message || 'Could not save. Please try again.',
+        );
+        return;
+      }
+      // Mock mode: still add locally so the user can proceed
+      if (quickAddType === 'party') {
+        setCustomParties(prev => [addedData, ...prev]);
+        setValue('partyName', addedData.name, {shouldValidate: true});
+      } else if (quickAddType === 'truck') {
+        setCustomTrucks(prev => [addedData, ...prev]);
+        setValue('truckNumber', addedData.vehicleNumber, {shouldValidate: true});
+      } else if (quickAddType === 'driver') {
+        setCustomDrivers(prev => [addedData, ...prev]);
+        setValue('driverName', addedData.name, {shouldValidate: true});
+        if (addedData.phone) setValue('driverPhone', addedData.phone, {shouldValidate: true});
+      }
     }
   };
 
@@ -1118,13 +1186,14 @@ export default function AddTripScreen() {
         <AddMoreDetailsSheet
           visible={moreDetailsVisible}
           initialValues={{
-            lrNumber: formValues.lrNumber,
+            lrNumber: formValues.lrNumber || nextTripNo,
             material: formValues.material,
             startKm: formValues.startKm,
             note: formValues.note,
           }}
           onSave={handleMoreDetailsSave}
           onClose={() => setMoreDetailsVisible(false)}
+          tripNoReadonly
         />
       </AppScreen>
     </KeyboardAvoidingView>
