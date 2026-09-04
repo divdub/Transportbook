@@ -1,4 +1,5 @@
 import {mockTrucks, mockVehicleTypes} from './trucks.mock';
+import {authStorage} from '../../services/storage/authStorage';
 import {apiClient} from '../../services/api/client';
 
 let inMemoryTrucks = [...mockTrucks];
@@ -35,36 +36,45 @@ export function mapTruckFromBackend(item) {
 
 export const trucksApi = {
   async getTrucks(params = {}) {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.get('/trucks', {params});
       const data = response.data?.data || response.data;
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         return data.map(mapTruckFromBackend);
       }
-    } catch {
-      // Backend not running or offline, return memory store
+      return [];
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
+      return inMemoryTrucks;
     }
-    return inMemoryTrucks;
   },
 
   async getTruckById(truckId) {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.get(`/trucks/${truckId}`);
       const raw = response.data?.data || response.data;
       if (raw) {
         return mapTruckFromBackend(raw);
       }
-    } catch {
-      // Local search fallback
+      return null;
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
+      const truck = inMemoryTrucks.find(t => t.id === truckId || t.vehicleNumber === truckId);
+      if (!truck) {
+        throw new Error(`Truck with ID ${truckId} not found`);
+      }
+      return truck;
     }
-    const truck = inMemoryTrucks.find(t => t.id === truckId || t.vehicleNumber === truckId);
-    if (!truck) {
-      throw new Error(`Truck with ID ${truckId} not found`);
-    }
-    return truck;
   },
 
   async createTruck(payload) {
+    const session = await authStorage.getSession();
     try {
       const body = {
         trucknumber: payload.vehicleNumber ? payload.vehicleNumber.trim().toUpperCase() : payload.trucknumber,
@@ -79,8 +89,10 @@ export const trucksApi = {
         inMemoryTrucks = [mapped, ...inMemoryTrucks];
         return mapped;
       }
-    } catch {
-      // Local creation fallback
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
     }
 
     const vehicleTypeObj =
@@ -161,13 +173,16 @@ export const trucksApi = {
   },
 
   async addMaintenance(truckId, payload) {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.post(`/trucks/${truckId}/maintenance`, payload);
       if (response.data) {
         return response.data?.data || response.data;
       }
-    } catch {
-      // Local fallback
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
     }
 
     const truck = inMemoryTrucks.find(t => t.id === truckId);

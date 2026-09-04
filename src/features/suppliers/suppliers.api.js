@@ -1,4 +1,5 @@
 import {apiClient} from '../../services/api/client';
+import {authStorage} from '../../services/storage/authStorage';
 import {mockFetchSuppliers, mockCreateSupplier} from './suppliers.mock';
 
 export function mapSupplierFromBackend(item) {
@@ -35,32 +36,42 @@ function firstErrorMessage(apiError) {
 
 export const suppliersApi = {
   getSuppliers: async () => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.get('/suppliers');
       const list = response.data?.data || response.data;
-      if (Array.isArray(list) && list.length > 0) {
+      if (Array.isArray(list)) {
         return list.map(mapSupplierFromBackend);
       }
-    } catch {
-      // Fallback to mock data if backend endpoint is unavailable
+      return [];
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
+      return mockFetchSuppliers();
     }
-    return mockFetchSuppliers();
   },
 
   getSupplierById: async id => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.get(`/suppliers/${id}`);
       const raw = response.data?.data || response.data;
       if (raw) {
         return mapSupplierFromBackend(raw);
       }
-    } catch {
+      return null;
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
       const all = await mockFetchSuppliers();
       return all.find(s => s.id === String(id)) || null;
     }
   },
 
   createSupplier: async payload => {
+    const session = await authStorage.getSession();
     const body = {
       suppliername: payload.suppliername,
       mobile: payload.mobile || '',
@@ -85,6 +96,9 @@ export const suppliersApi = {
     } catch (apiError) {
       if (apiError?.response || apiError?.status) {
         throw new Error(firstErrorMessage(apiError) || 'Supplier could not be saved.');
+      }
+      if (session?.accessToken) {
+        throw new Error('Unable to reach the server. Please check your connection.');
       }
       return mockCreateSupplier(body);
     }

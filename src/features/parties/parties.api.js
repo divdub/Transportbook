@@ -1,4 +1,5 @@
 import {apiClient} from '../../services/api/client';
+import {authStorage} from '../../services/storage/authStorage';
 import {mockFetchParties, mockCreateParty} from './parties.mock';
 
 export function mapPartyFromBackend(item) {
@@ -19,32 +20,42 @@ export function mapPartyFromBackend(item) {
 
 export const partiesApi = {
   getParties: async () => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.get('/parties');
       const list = response.data?.data || response.data;
-      if (Array.isArray(list) && list.length > 0) {
+      if (Array.isArray(list)) {
         return list.map(mapPartyFromBackend);
       }
-    } catch {
-      // Fallback to mock data if backend endpoint is unavailable
+      return [];
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
+      return mockFetchParties();
     }
-    return mockFetchParties();
   },
 
   getPartyById: async id => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.get(`/parties/${id}`);
       const raw = response.data?.data || response.data;
       if (raw) {
         return mapPartyFromBackend(raw);
       }
-    } catch {
+      return null;
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
       const all = await mockFetchParties();
       return all.find(p => p.id === String(id)) || all[0];
     }
   },
 
   createParty: async payload => {
+    const session = await authStorage.getSession();
     try {
       const body = {
         partyname: payload.name || payload.partyname,
@@ -60,8 +71,10 @@ export const partiesApi = {
       if (raw && (raw.partyid || raw.id)) {
         return mapPartyFromBackend(raw);
       }
-    } catch {
-      // Local fallback
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
     }
     return mockCreateParty(payload);
   },

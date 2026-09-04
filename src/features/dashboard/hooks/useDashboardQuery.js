@@ -5,5 +5,6 @@ export function useDashboardQuery() {
   return useQuery({
     queryKey: ['dashboard'],
     queryFn: mockFetchDashboard,
+    refetchOnMount: 'always',
   });
 }

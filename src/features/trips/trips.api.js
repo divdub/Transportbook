@@ -1,4 +1,5 @@
 import {apiClient} from '../../services/api/client';
+import {authStorage} from '../../services/storage/authStorage';
 import {
   mockFetchTrips,
   mockFetchTripById,
@@ -59,32 +60,41 @@ function toIsoDate(value) {
 
 export const tripsApi = {
   getTrips: async params => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.get('/trips', {params});
       const data = response.data?.data || response.data;
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         return data.map(mapTripFromBackend);
       }
-    } catch {
-      // Backend offline / mock fallback
+      return [];
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
+      return mockFetchTrips();
     }
-    return mockFetchTrips();
   },
 
   getTripById: async id => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.get(`/trips/${id}`);
       const raw = response.data?.data || response.data;
       if (raw) {
         return mapTripFromBackend(raw);
       }
-    } catch {
-      // Backend offline / mock fallback
+      return null;
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
+      return mockFetchTripById(id);
     }
-    return mockFetchTripById(id);
   },
 
   createTrip: async data => {
+    const session = await authStorage.getSession();
     const body = {
       // Backend expects integer foreign keys — send the IDs captured from the
       // parties/trucks/drivers list endpoints, falling back to null when the
@@ -113,62 +123,88 @@ export const tripsApi = {
       if (created && (created.tripid || created.id || created.tripno)) {
         return mapTripFromBackend(created);
       }
-    } catch {
-      // Backend offline / mock fallback
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
     }
     return mockCreateTrip(data);
   },
 
   updateTrip: async (id, data) => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.put(`/trips/${id}`, data);
       return response.data?.data || response.data;
-    } catch {
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
       return {id, ...data};
     }
   },
 
   updateTripStatus: async (id, data) => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.post(`/trips/${id}/status`, data);
       return response.data?.data || response.data;
-    } catch {
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
       return mockUpdateTripStatus({id, ...data});
     }
   },
 
   addAdvance: async (id, data) => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.post(`/trips/${id}/advance`, data);
       return response.data?.data || response.data;
-    } catch {
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
       return mockAddAdvance({id, ...data});
     }
   },
 
   addExpense: async (id, data) => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.post(`/trips/${id}/expenses`, data);
       return response.data?.data || response.data;
-    } catch {
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
       return {id, ...data};
     }
   },
 
   addLoad: async (id, data) => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.post(`/trips/${id}/loads`, data);
       return response.data?.data || response.data;
-    } catch {
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
       return {id, ...data};
     }
   },
 
   addDriverBalance: async (id, data) => {
+    const session = await authStorage.getSession();
     try {
       const response = await apiClient.post(`/trips/${id}/driver-balance`, data);
       return response.data?.data || response.data;
-    } catch {
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
       return mockAddDriverBalance({id, ...data});
     }
   },

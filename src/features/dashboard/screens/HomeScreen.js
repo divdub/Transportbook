@@ -1,6 +1,6 @@
-import React from 'react';
+import React, {useCallback} from 'react';
 import {ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppScreen} from '../../../components/common/AppScreen';
 import {AppText} from '../../../components/common/AppText';
@@ -14,8 +14,7 @@ import {useDashboardQuery} from '../hooks/useDashboardQuery';
 const defaultDashboard = {
   user: {name: 'Rajesh'},
   overview: {
-    activeTrips: 12,
-    receivables: 284500,
+    receivables: 0,
     trucks: 9,
     parties: 18,
     pendingPods: 5,
@@ -24,7 +23,14 @@ const defaultDashboard = {
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const {data: dashboardData} = useDashboardQuery();
+  const {data: dashboardData, refetch: refetchDashboard} = useDashboardQuery();
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchDashboard();
+    }, [refetchDashboard]),
+  );
+
   const dashboard = dashboardData || defaultDashboard;
   const {user, overview} = dashboard;
 
@@ -34,7 +40,7 @@ export default function HomeScreen() {
         {/* Top Header Card (Receivables Header as shown in Image 2) */}
         <HeaderCard
           userName={user.name}
-          receivables={overview.receivables || 284500}
+          receivables={overview.receivables || 0}
         />
 
         {/* 4 Premium Curved Cards (2x2 Grid) */}
@@ -113,7 +119,7 @@ function PremiumMetricsGrid({overview, navigation}) {
     {
       key: 'trips',
       title: 'Current Trips',
-      value: `${overview.activeTrips || 12} Active`,
+      value: `${overview.activeTrips || 0} Active`,
       subtitle: 'Trips in Transit',
       icon: 'road-variant',
       iconBg: '#ECFDF5',
