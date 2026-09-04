@@ -26,6 +26,40 @@ jest.mock('../src/features/drivers/hooks/useDriversQuery', () => ({
   }),
 }));
 
+jest.mock('../src/features/trucks/hooks/useTrucksQuery', () => ({
+  useTrucksQuery: () => ({
+    data: [
+      {
+        id: 'T-1',
+        vehicleNumber: 'KA01AB1234',
+        ownership: 'market',
+        // Real backend truck rows carry only supplierid, no owner/supplier name.
+        supplierId: '7',
+        supplierName: '',
+        status: 'available',
+      },
+      {
+        id: 'T-2',
+        vehicleNumber: 'KA02CD5678',
+        ownership: 'own',
+        supplierName: '',
+        status: 'available',
+      },
+    ],
+    isLoading: false,
+  }),
+}));
+
+jest.mock('../src/features/suppliers/hooks/useSuppliersQuery', () => ({
+  useSuppliersQuery: () => ({
+    data: [
+      {id: '7', suppliername: 'Om Suppliers'},
+      {id: '9', suppliername: 'Bhavya Road Lines'},
+    ],
+    isLoading: false,
+  }),
+}));
+
 jest.mock('../src/features/trips/hooks/useAddTripMutation', () => ({
   useAddTripMutation: () => ({
     mutateAsync: jest.fn().mockResolvedValue({id: 'TRIP-999'}),
@@ -91,6 +125,28 @@ describe('Trips Module - Phase 2 & 3 (Add Trip & Add More Details)', () => {
       );
     });
     expect(tree).toBeDefined();
+  });
+
+  it('resolves supplier name + id for a market truck', () => {
+    const {resolveSupplierForTruck} = require('../src/features/trips/screens/AddTripScreen');
+    const suppliers = [
+      {id: '7', suppliername: 'Om Suppliers'},
+      {id: '9', suppliername: 'Bhavya Road Lines'},
+    ];
+
+    // Backend truck row: only supplierid, no name -> resolved from suppliers.
+    const resolved = resolveSupplierForTruck(
+      {supplierId: '7', supplierName: '', ownerName: ''},
+      suppliers,
+    );
+    expect(resolved).toEqual({name: 'Om Suppliers', id: 7});
+
+    // No supplier id -> name falls back to truck's own owner name, id null.
+    const fallback = resolveSupplierForTruck(
+      {supplierId: '', supplierName: 'My Owner', ownerName: ''},
+      suppliers,
+    );
+    expect(fallback).toEqual({name: 'My Owner', id: null});
   });
 
   it('renders AddMoreDetailsSheet cleanly and triggers onSave', () => {

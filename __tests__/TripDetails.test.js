@@ -29,6 +29,8 @@ jest.mock('../src/features/trips/hooks/useTripDetailsQuery', () => ({
       id: 'TRIP-1001',
       partyName: 'Sainy Logistics',
       truckNumber: 'KA 12 DS 3747',
+      truckId: 'TRK-1',
+      supplierId: '7',
       driverName: 'Ramesh Kumar',
       origin: 'Bangalore',
       destination: 'Hyderabad',
@@ -81,6 +83,31 @@ jest.mock('../src/features/trips/hooks/useAddDriverBalanceMutation', () => ({
 jest.mock('../src/features/parties/hooks/usePartiesQuery', () => ({
   usePartiesQuery: () => ({
     data: [{id: 'P-1', name: 'Sainy Logistics'}],
+    isLoading: false,
+  }),
+}));
+
+jest.mock('../src/features/trucks/hooks/useTrucksQuery', () => ({
+  useTrucksQuery: () => ({
+    // Backend truck rows carry only supplierid; ownerName defaults to
+    // 'Vehicle Owner' and is NOT a real supplier name.
+    data: [
+      {
+        id: 'TRK-1',
+        vehicleNumber: 'KA 12 DS 3747',
+        ownership: 'market',
+        supplierId: '7',
+        supplierName: '',
+        ownerName: 'Vehicle Owner',
+      },
+    ],
+    isLoading: false,
+  }),
+}));
+
+jest.mock('../src/features/suppliers/hooks/useSuppliersQuery', () => ({
+  useSuppliersQuery: () => ({
+    data: [{id: '7', suppliername: 'Om Suppliers'}],
     isLoading: false,
   }),
 }));
@@ -142,6 +169,31 @@ describe('Trips Module - Phase 4-9 (Trip Details, Progress, Load & Sheets)', () 
       );
     });
     expect(tree).toBeDefined();
+  });
+
+  it('shows the supplier name (not the vehicle) on the Supplier Advance caption', () => {
+    const onSave = jest.fn();
+    const onClose = jest.fn();
+    let tree;
+    ReactTestRenderer.act(() => {
+      tree = ReactTestRenderer.create(
+        <AddAdvanceSheet
+          visible={true}
+          onSave={onSave}
+          onClose={onClose}
+          isMarketTruck
+          partyName="Sainy Logistics"
+          supplierName="Om Suppliers"
+        />,
+      );
+    });
+    const {Text} = require('react-native');
+    const texts = tree.root
+      .findAllByType(Text)
+      .map(n => String(n.props.children || '').trim())
+      .filter(Boolean);
+    expect(texts).toContain('Om Suppliers');
+    expect(texts).not.toContain('Vehicle Owner');
   });
 
   it('renders AddDriverBalanceSheet and triggers confirm', () => {

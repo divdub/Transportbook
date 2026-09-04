@@ -16,6 +16,7 @@ export function mapTruckFromBackend(item) {
     ownerPhone: item.ownerPhone || item.owner_phone || '',
     supplierName: item.supplierName || item.ownerName || item.owner_name || '',
     supplierPhone: item.supplierPhone || item.ownerPhone || item.owner_phone || '',
+    supplierId: item.supplierid == null ? '' : String(item.supplierid),
     driverId: item.driverId ? String(item.driverId) : (item.driver_id ? String(item.driver_id) : ''),
     driverName: item.driverName || item.driver_name || 'Unassigned',
     driverPhone: item.driver_phone || '',

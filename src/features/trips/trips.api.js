@@ -17,6 +17,7 @@ export function mapTripFromBackend(item) {
     partyId: item.partyid == null ? null : String(item.partyid),
     truckId: item.truckid == null ? null : String(item.truckid),
     driverId: item.driverid == null ? null : String(item.driverid),
+    supplierId: item.supplierid == null ? null : String(item.supplierid),
     partyName: item.partyname || item.partyName || '',
     truckNumber: item.trucknumber || item.truckNumber || 'Commercial Truck',
     driverName: item.drivername || item.driverName || 'Driver',
@@ -159,8 +160,23 @@ export const tripsApi = {
 
   addAdvance: async (id, data) => {
     const session = await authStorage.getSession();
+    const isSupplier = data.advancetype === 'supplier';
+    // Matches AdvanceEntryController@store — party advances carry partyid,
+    // supplier advances carry supplierid, and advancetype distinguishes them.
+    const body = {
+      tripid: id,
+      amount: Number(data.amount) || 0,
+      advancename: isSupplier ? 'Supplier advance' : 'Party advance',
+      advdate: toIsoDate(data.date),
+      receivedbydriver: data.receivedByDriver ? 1 : 0,
+      driverid: data.driverId ? Number(data.driverId) : null,
+      partyid: !isSupplier && data.partyId ? Number(data.partyId) : null,
+      supplierid: isSupplier && data.supplierId ? Number(data.supplierId) : null,
+      remark: data.note || '',
+      advancetype: isSupplier ? 'supplier' : 'party',
+    };
     try {
-      const response = await apiClient.post(`/trips/${id}/advance`, data);
+      const response = await apiClient.post('/advanceentries', body);
       return response.data?.data || response.data;
     } catch (error) {
       if (session?.accessToken) {

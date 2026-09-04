@@ -25,6 +25,7 @@ import {AddMoreDetailsSheet} from '../sheets/AddMoreDetailsSheet';
 import {useAddTripMutation} from '../hooks/useAddTripMutation';
 import {usePartiesQuery} from '../../parties/hooks/usePartiesQuery';
 import {useTrucksQuery} from '../../trucks/hooks/useTrucksQuery';
+import {useSuppliersQuery} from '../../suppliers/hooks/useSuppliersQuery';
 import {useDriversQuery} from '../../drivers/hooks/useDriversQuery';
 import {addTripSchema} from '../tripsValidation';
 import {routes} from '../../../navigation/routeNames';
@@ -64,11 +65,33 @@ function getFormattedToday() {
   return `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
 }
 
+// Resolve a market truck's supplier display name + id. Backend truck rows only
+// carry supplierid (no name), so look the name up in the suppliers list; fall
+// back to the truck's own owner/supplier name when no id is available.
+export function resolveSupplierForTruck(truck, suppliers) {
+  if (!truck) {
+    return {name: '', id: null};
+  }
+  const supplierId = truck.supplierId ? Number(truck.supplierId) || null : null;
+  const matched = supplierId
+    ? (suppliers || []).find(
+        s => Number(s.id) === supplierId || s.id === truck.supplierId,
+      )
+    : null;
+  const name =
+    (matched && (matched.suppliername || matched.name)) ||
+    truck.supplierName ||
+    truck.ownerName ||
+    '';
+  return {name, id: supplierId};
+}
+
 export default function AddTripScreen() {
   const navigation = useNavigation();
   const {mutateAsync: createTrip, isPending} = useAddTripMutation();
   const {data: apiParties} = usePartiesQuery();
   const {data: apiTrucks} = useTrucksQuery();
+  const {data: apiSuppliers} = useSuppliersQuery();
   const {data: apiDrivers} = useDriversQuery();
 
   // Custom added items in state
@@ -162,6 +185,7 @@ export default function AddTripScreen() {
       ownerPhone: t.ownerPhone || t.supplierPhone || '',
       supplierName: t.supplierName || t.ownerName || '',
       supplierPhone: t.supplierPhone || t.ownerPhone || '',
+      supplierId: t.supplierId || '',
       status: t.status || 'available',
       sublabel: t.activeTrip?.route || (t.driverName || t.ownerName ? `${t.driverName || t.ownerName}${t.driverPhone || t.ownerPhone ? ` • ${t.driverPhone || t.ownerPhone}` : ''}` : ''),
     }));
@@ -175,6 +199,7 @@ export default function AddTripScreen() {
         ownership: (typeof t === 'object' && t.ownership) || 'own',
         ownerName: (typeof t === 'object' && (t.ownerName || t.supplierName)) || '',
         supplierName: (typeof t === 'object' && (t.supplierName || t.ownerName)) || '',
+        supplierId: (typeof t === 'object' && t.supplierId) || '',
         status: 'available',
       };
     });
@@ -380,20 +405,23 @@ export default function AddTripScreen() {
   const isFixedSupplierBilling = formValues.supplierBillingType === 'Fixed';
 
   const supplierOptions = useMemo(() => {
-    const combined = (apiTrucks || [])
-      .map(t => t.supplierName || t.ownerName)
-      .filter(Boolean);
-    const seen = new Set();
-    return combined.filter(name => {
-      if (seen.has(name)) return false;
-      seen.add(name);
-      return true;
-    }).map(name => ({
+    // Prefer the real suppliers list (id + name); fall back to owners/suppliers
+    // derived from market trucks so the picker still works when suppliers are
+    // unavailable. Each option carries its id so the trip can send supplierid.
+    const byName = new Map();
+    const addOpt = (name, id) => {
+      if (!name) return;
+      if (!byName.has(name)) byName.set(name, id || '');
+    };
+    (apiSuppliers || []).forEach(s => addOpt(s.suppliername || s.name, s.id));
+    (apiTrucks || []).forEach(t => addOpt(t.supplierName || t.ownerName, t.supplierId));
+    return Array.from(byName.entries()).map(([name, id]) => ({
       name,
       label: name,
       value: name,
+      id: id ? String(id) : null,
     }));
-  }, [apiTrucks]);
+  }, [apiSuppliers, apiTrucks]);
 
   return (
     <KeyboardAvoidingView
@@ -973,13 +1001,14 @@ export default function AddTripScreen() {
             const val = typeof item === 'string' ? item : item.value || item.name;
             const id = typeof item === 'object' ? item.id : null;
             const ownershipVal = typeof item === 'object' ? (item.ownership || 'own') : 'own';
-            const supplierVal = typeof item === 'object' ? (item.supplierName || item.ownerName || '') : '';
             setValue('truckNumber', val, {shouldValidate: true});
             setValue('truckId', Number(id) || null);
             setValue('ownership', ownershipVal, {shouldValidate: true});
-            if (supplierVal) {
-              setValue('supplierName', supplierVal, {shouldValidate: true});
-            }
+            // Auto-fetch the market truck's supplier so the owner's id and name
+            // are captured and sent along when creating the trip.
+            const resolved = resolveSupplierForTruck(item, apiSuppliers);
+            setValue('supplierName', resolved.name, {shouldValidate: true});
+            setValue('supplierId', resolved.id);
           }}
           onClose={() => setActivePicker(null)}
           placeholder="Search or enter truck no..."

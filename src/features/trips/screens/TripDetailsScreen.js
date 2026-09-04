@@ -21,6 +21,7 @@ import {useAddAdvanceMutation} from '../hooks/useAddAdvanceMutation';
 import {useAddDriverBalanceMutation} from '../hooks/useAddDriverBalanceMutation';
 import {usePartiesQuery} from '../../parties/hooks/usePartiesQuery';
 import {useTrucksQuery} from '../../trucks/hooks/useTrucksQuery';
+import {useSuppliersQuery} from '../../suppliers/hooks/useSuppliersQuery';
 import {useDriversQuery} from '../../drivers/hooks/useDriversQuery';
 import {useCitiesQuery} from '../../cities/hooks/useCitiesQuery';
 import {routes} from '../../../navigation/routeNames';
@@ -40,6 +41,7 @@ export default function TripDetailsScreen() {
   const {data: trip, isLoading, isError, refetch} = useTripDetailsQuery(tripId || 'TRIP-1001');
   const {data: parties = []} = usePartiesQuery();
   const {data: trucks = []} = useTrucksQuery();
+  const {data: suppliers = []} = useSuppliersQuery();
   const {data: drivers = []} = useDriversQuery();
   const {data: cities = []} = useCitiesQuery();
   const {mutateAsync: updateStatus, isPending: isUpdatingStatus} = useUpdateTripStatusMutation();
@@ -47,14 +49,22 @@ export default function TripDetailsScreen() {
   const {mutateAsync: addDriverBalance, isPending: isAddingDriverBalance} = useAddDriverBalanceMutation();
 
   // Backend trip rows return integer FKs (partyid/truckid/driverid/originid/
-  // destinationid) but not display names, so join the shared reference lists
-  // to resolve them for rendering.
+  // destinationid, supplierid) but not display names, so join the shared
+  // reference lists to resolve them for rendering.
   const displayTrip = useMemo(() => {
     if (!trip) return null;
     const partyById = new Map(parties.map(p => [String(p.id), p.name]));
     const truckById = new Map(trucks.map(t => [String(t.id), t.vehicleNumber]));
     const driverById = new Map(drivers.map(d => [String(d.id), d.drivername]));
     const cityById = new Map(cities.map(c => [String(c.id), c.name]));
+    const supplierById = new Map(
+      suppliers.map(s => [String(s.id), s.suppliername || s.name || '']),
+    );
+    const truck = trucks.find(t => String(t.id) === String(trip.truckId));
+    // Resolve the market-truck supplier name from the suppliers list by the
+    // trip's supplierid. Backend truck rows carry no supplier name and default
+    // ownerName to 'Vehicle Owner', so never fall back to that for display.
+    const truckSupplierName = truck?.supplierName || truck?.ownerName || '';
     return {
       ...trip,
       partyName:
@@ -69,11 +79,14 @@ export default function TripDetailsScreen() {
         trip.driverName ||
         (trip.driverId && driverById.get(trip.driverId)) ||
         'Unassigned',
+      supplierName:
+        (trip.supplierId && supplierById.get(String(trip.supplierId))) ||
+        (truckSupplierName && truckSupplierName !== 'Vehicle Owner' ? truckSupplierName : ''),
       origin: trip.origin || (trip.originId && cityById.get(trip.originId)) || 'Origin',
       destination:
         trip.destination || (trip.destinationId && cityById.get(trip.destinationId)) || 'Destination',
     };
-  }, [trip, parties, trucks, drivers, cities]);
+  }, [trip, parties, trucks, drivers, cities, suppliers]);
 
   if (isLoading) {
     return (
@@ -108,7 +121,15 @@ export default function TripDetailsScreen() {
   };
 
   const handleSaveAdvance = async data => {
-    await addAdvance({id: displayTrip.id, ...data});
+    // Include the trip + party/supplier context the AdvanceEntryController expects.
+    const isSupplier = data.advancetype === 'supplier';
+    await addAdvance({
+      id: displayTrip.id,
+      ...data,
+      partyId: isSupplier ? null : displayTrip.partyId,
+      supplierId: isSupplier ? displayTrip.supplierId : null,
+      driverId: displayTrip.driverId,
+    });
     setAdvanceSheetVisible(false);
   };
 
@@ -682,6 +703,9 @@ export default function TripDetailsScreen() {
         onSave={handleSaveAdvance}
         onClose={() => setAdvanceSheetVisible(false)}
         isPending={isAddingAdvance}
+        isMarketTruck={Boolean(displayTrip.supplierId)}
+        partyName={displayTrip.partyName}
+        supplierName={displayTrip.supplierName}
       />
 
       {/* Add Driver Balance Modal */}

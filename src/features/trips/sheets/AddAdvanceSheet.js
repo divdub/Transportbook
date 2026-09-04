@@ -28,7 +28,11 @@ export function AddAdvanceSheet({
   onSave,
   onClose,
   isPending,
+  isMarketTruck = false,
+  partyName = '',
+  supplierName = '',
 }) {
+  const [advanceType, setAdvanceType] = useState('party');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(getFormattedToday());
   const [paymentMode, setPaymentMode] = useState('Cash');
@@ -43,6 +47,7 @@ export function AddAdvanceSheet({
       paymentMode,
       receivedByDriver,
       note: note.trim(),
+      advancetype: advanceType,
     });
   };
 
@@ -61,9 +66,66 @@ export function AddAdvanceSheet({
               
               {/* Header */}
               <View style={styles.header}>
-                <AppText variant="heading" style={styles.title}>
-                  Add Advance
-                </AppText>
+                {isMarketTruck ? (
+                  /* For market trucks the heading is the Party/Supplier selector */
+                  <View style={styles.advanceTypeRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.advanceTypeBtn,
+                        advanceType === 'party' && styles.advanceTypeBtnSelected,
+                      ]}
+                      onPress={() => setAdvanceType('party')}
+                      activeOpacity={0.7}>
+                      <AppText
+                        variant="label"
+                        style={[
+                          styles.advanceTypeText,
+                          advanceType === 'party' && styles.advanceTypeTextSelected,
+                        ]}>
+                        Party Advance
+                      </AppText>
+                      <AppText
+                        variant="caption"
+                        numberOfLines={1}
+                        style={[
+                          styles.advanceTypeSub,
+                          advanceType === 'party' && styles.advanceTypeSubSelected,
+                        ]}>
+                        {partyName || 'Party'}
+                      </AppText>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.advanceTypeBtn,
+                        advanceType === 'supplier' && styles.supplierTypeBtnSelected,
+                      ]}
+                      onPress={() => setAdvanceType('supplier')}
+                      activeOpacity={0.7}>
+                      <AppText
+                        variant="label"
+                        style={[
+                          styles.advanceTypeText,
+                          advanceType === 'supplier' && styles.supplierTypeTextSelected,
+                        ]}>
+                        Supplier Advance
+                      </AppText>
+                      <AppText
+                        variant="caption"
+                        numberOfLines={1}
+                        style={[
+                          styles.advanceTypeSub,
+                          advanceType === 'supplier' && styles.supplierTypeSubSelected,
+                        ]}>
+                        {supplierName || 'Supplier'}
+                      </AppText>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <AppText variant="heading" style={styles.title}>
+                    Add Advance
+                  </AppText>
+                )}
                 <TouchableOpacity
                   onPress={onClose}
                   style={styles.closeBtn}
@@ -299,6 +361,52 @@ const styles = StyleSheet.create({
   },
   paymentSection: {
     gap: 4,
+  },
+  advanceTypeRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginRight: spacing.sm,
+  },
+  advanceTypeBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
+    gap: 2,
+  },
+  advanceTypeBtnSelected: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
+  supplierTypeBtnSelected: {
+    backgroundColor: '#FFEDD5',
+    borderColor: '#EA580C',
+  },
+  advanceTypeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+  advanceTypeTextSelected: {
+    color: colors.primary,
+  },
+  supplierTypeTextSelected: {
+    color: '#C2410C',
+  },
+  advanceTypeSub: {
+    fontSize: 10,
+    color: colors.textMuted,
+    maxWidth: '100%',
+  },
+  advanceTypeSubSelected: {
+    color: colors.primary,
+  },
+  supplierTypeSubSelected: {
+    color: '#C2410C',
   },
   chipRow: {
     flexDirection: 'row',
