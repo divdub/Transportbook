@@ -14,11 +14,15 @@ import {AppScreen} from '../../../components/common/AppScreen';
 import {AppText} from '../../../components/common/AppText';
 import {TripStatusStepper} from '../components/TripStatusStepper';
 import {AddAdvanceSheet} from '../sheets/AddAdvanceSheet';
+import {AddChargeSheet} from '../sheets/AddChargeSheet';
 import {AddDriverBalanceSheet} from '../sheets/AddDriverBalanceSheet';
+import {AddPaymentSheet} from '../sheets/AddPaymentSheet';
 import {useTripDetailsQuery} from '../hooks/useTripDetailsQuery';
 import {useUpdateTripStatusMutation} from '../hooks/useUpdateTripStatusMutation';
 import {useAddAdvanceMutation} from '../hooks/useAddAdvanceMutation';
+import {useAddChargeMutation} from '../hooks/useAddChargeMutation';
 import {useAddDriverBalanceMutation} from '../hooks/useAddDriverBalanceMutation';
+import {useAddPaymentMutation} from '../hooks/useAddPaymentMutation';
 import {usePartiesQuery} from '../../parties/hooks/usePartiesQuery';
 import {useTrucksQuery} from '../../trucks/hooks/useTrucksQuery';
 import {useSuppliersQuery} from '../../suppliers/hooks/useSuppliersQuery';
@@ -36,7 +40,9 @@ export default function TripDetailsScreen() {
 
   const [activeTab, setActiveTab] = useState('Party');
   const [advanceSheetVisible, setAdvanceSheetVisible] = useState(false);
+  const [chargeSheetVisible, setChargeSheetVisible] = useState(false);
   const [driverBalanceVisible, setDriverBalanceVisible] = useState(false);
+  const [paymentSheetVisible, setPaymentSheetVisible] = useState(false);
 
   const {data: trip, isLoading, isError, refetch} = useTripDetailsQuery(tripId || 'TRIP-1001');
   const {data: parties = []} = usePartiesQuery();
@@ -46,7 +52,9 @@ export default function TripDetailsScreen() {
   const {data: cities = []} = useCitiesQuery();
   const {mutateAsync: updateStatus, isPending: isUpdatingStatus} = useUpdateTripStatusMutation();
   const {mutateAsync: addAdvance, isPending: isAddingAdvance} = useAddAdvanceMutation();
+  const {mutateAsync: addCharge, isPending: isAddingCharge} = useAddChargeMutation();
   const {mutateAsync: addDriverBalance, isPending: isAddingDriverBalance} = useAddDriverBalanceMutation();
+  const {mutateAsync: addPayment, isPending: isAddingPayment} = useAddPaymentMutation();
 
   // Backend trip rows return integer FKs (partyid/truckid/driverid/originid/
   // destinationid, supplierid) but not display names, so join the shared
@@ -133,9 +141,24 @@ export default function TripDetailsScreen() {
     setAdvanceSheetVisible(false);
   };
 
+  const handleSaveCharge = async data => {
+    // Pass the charge entry through to the ChargeEntryController. The sheet
+    // resolves cid (charge type id) and chargetype ('party'/'supplier').
+    await addCharge({
+      id: displayTrip.id,
+      ...data,
+    });
+    setChargeSheetVisible(false);
+  };
+
   const handleSaveDriverBalance = async data => {
     await addDriverBalance({id: displayTrip.id, ...data});
     setDriverBalanceVisible(false);
+  };
+
+  const handleSavePayment = async data => {
+    await addPayment({tripId: displayTrip.id, payload: data});
+    setPaymentSheetVisible(false);
   };
 
   // Calculations for Profit Tab
@@ -363,9 +386,7 @@ export default function TripDetailsScreen() {
                   </AppText>
                 </View>
                 <TouchableOpacity
-                  onPress={() =>
-                    Alert.alert('Add Charges', 'Charge adjustment added to freight.')
-                  }
+                  onPress={() => setChargeSheetVisible(true)}
                   style={styles.actionLinkBtn}>
                   <AppText variant="label" style={styles.actionLinkText}>
                     Add Charges
@@ -384,9 +405,7 @@ export default function TripDetailsScreen() {
                   </AppText>
                 </View>
                 <TouchableOpacity
-                  onPress={() =>
-                    Alert.alert('Add Payment', 'Record customer settlement payment.')
-                  }
+                  onPress={() => setPaymentSheetVisible(true)}
                   style={styles.actionLinkBtn}>
                   <AppText variant="label" style={styles.actionLinkText}>
                     Add Payment
@@ -708,6 +727,19 @@ export default function TripDetailsScreen() {
         supplierName={displayTrip.supplierName}
       />
 
+      {/* Add Charge Modal */}
+      <AddChargeSheet
+        visible={chargeSheetVisible}
+        onSave={handleSaveCharge}
+        onClose={() => setChargeSheetVisible(false)}
+        isPending={isAddingCharge}
+        isMarketTruck={Boolean(displayTrip.supplierId)}
+        partyName={displayTrip.partyName}
+        supplierName={displayTrip.supplierName}
+        partyId={displayTrip.partyId}
+        supplierId={displayTrip.supplierId}
+      />
+
       {/* Add Driver Balance Modal */}
       <AddDriverBalanceSheet
         visible={driverBalanceVisible}
@@ -715,6 +747,14 @@ export default function TripDetailsScreen() {
         onConfirm={handleSaveDriverBalance}
         onClose={() => setDriverBalanceVisible(false)}
         isPending={isAddingDriverBalance}
+      />
+      <AddPaymentSheet
+        visible={paymentSheetVisible}
+        onSave={handleSavePayment}
+        onClose={() => setPaymentSheetVisible(false)}
+        isPending={isAddingPayment}
+        partyName={displayTrip.partyName}
+        partyId={displayTrip.partyId}
       />
     </AppScreen>
   );

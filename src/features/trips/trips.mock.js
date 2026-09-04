@@ -53,6 +53,7 @@ export const mockCreateTrip = async tripData => {
       {status: 'Settled', date: null, completed: false, podUrl: null},
     ],
     expenses: [],
+    charges: [],
     advances: tripData.advanceAmount ? [{
       id: `ADV-${Date.now()}`,
       amount: Number(tripData.advanceAmount),
@@ -123,6 +124,56 @@ export const mockAddAdvance = async ({id, amount, paymentMode, date, receivedByD
     ...trip,
     advances: updatedAdvances,
     advanceAmount: totalAdvance,
+    pendingBalance,
+  };
+
+  mockTrips[index] = updatedTrip;
+  return updatedTrip;
+};
+
+export const mockAddCharge = async ({
+  id,
+  amount,
+  billAdjustment,
+  chargeType,
+  date,
+  note,
+  cid,
+}) => {
+  await delay(350);
+  const index = mockTrips.findIndex(t => t.id === id);
+  if (index === -1) throw new Error('Trip not found');
+
+  const trip = mockTrips[index];
+  const amt = Number(amount) || 0;
+  const adj = billAdjustment === 'reduce' ? 'reduce' : 'add';
+  const newCharge = {
+    id: `CHG-${Date.now()}`,
+    amount: amt,
+    billAdjustment: adj,
+    chargeType: chargeType || '',
+    date: date || '25 Aug 2026',
+    note: note || '',
+    cid: cid != null ? cid : null,
+  };
+
+  const updatedCharges = [...(trip.charges || []), newCharge];
+  const totalAdd = updatedCharges
+    .filter(c => c.billAdjustment === 'add')
+    .reduce((acc, c) => acc + c.amount, 0);
+  const totalReduce = updatedCharges
+    .filter(c => c.billAdjustment === 'reduce')
+    .reduce((acc, c) => acc + c.amount, 0);
+  const netCharges = totalAdd - totalReduce;
+  const pendingBalance = Math.max(
+    0,
+    trip.freightAmount + netCharges - (trip.advanceAmount || 0) - (trip.paymentsAmount || 0),
+  );
+
+  const updatedTrip = {
+    ...trip,
+    charges: updatedCharges,
+    chargesAmount: netCharges,
     pendingBalance,
   };
 

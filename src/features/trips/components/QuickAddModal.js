@@ -29,17 +29,22 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
   const isTruck = type === 'truck';
   const isDriver = type === 'driver';
   const isParty = type === 'party';
+  const isCharge = type === 'charge';
 
   const modalTitle = isParty
     ? 'Add New Party / Customer'
     : isTruck
     ? 'Add New Truck Number'
+    : isCharge
+    ? 'Add New Charge Type'
     : 'Add New Driver';
 
   const namePlaceholder = isParty
     ? 'Party / Customer Name (e.g. ABC Logistics)'
     : isTruck
     ? 'Truck No. (e.g. KA 01 AB 1234)'
+    : isCharge
+    ? 'Charge Type Name (e.g. Demurrage)'
     : 'Driver Full Name (e.g. Rajesh Singh)';
 
   const handleSave = () => {
@@ -49,6 +54,8 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
       onAdd({name: name.trim(), phoneNumber: phone.trim(), category: extra.trim() || 'Transport Partner'});
     } else if (isTruck) {
       onAdd({vehicleNumber: name.trim().toUpperCase(), vehicleTypeName: extra.trim() || '10 Wheeler (24 Ton)'});
+    } else if (isCharge) {
+      onAdd({chargename: name.trim()});
     } else if (isDriver) {
       onAdd({name: name.trim(), phone: phone.trim()});
     }
@@ -77,7 +84,7 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
             {/* Header */}
             <View style={styles.cardHeader}>
               <Icon
-                name={isParty ? 'account-plus' : isTruck ? 'truck-plus' : 'account-cog'}
+                name={isParty ? 'account-plus' : isTruck ? 'truck-plus' : isCharge ? 'cash-plus' : 'account-cog'}
                 size={24}
                 color={colors.primary}
               />
@@ -93,7 +100,7 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
             <View style={styles.formContent}>
               <View style={styles.inputContainer}>
                 <AppText variant="caption" color="textMuted" style={styles.inputLabel}>
-                  {isParty ? 'Party Name *' : isTruck ? 'Vehicle Number *' : 'Driver Name *'}
+                  {isParty ? 'Party Name *' : isTruck ? 'Vehicle Number *' : isCharge ? 'Charge Type Name *' : 'Driver Name *'}
                 </AppText>
                 <TextInput
                   value={name}
@@ -106,7 +113,7 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
                 />
               </View>
 
-              {!isTruck ? (
+              {!isTruck && !isCharge ? (
                 <View style={styles.inputContainer}>
                   <AppText variant="caption" color="textMuted" style={styles.inputLabel}>
                     Mobile Number (Optional)
@@ -121,7 +128,7 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
                     style={styles.input}
                   />
                 </View>
-              ) : (
+              ) : isTruck ? (
                 <View style={styles.inputContainer}>
                   <AppText variant="caption" color="textMuted" style={styles.inputLabel}>
                     Truck Type / Capacity (Optional)
@@ -134,7 +141,7 @@ export function QuickAddModal({visible, type = 'party', onAdd, onClose}) {
                     style={styles.input}
                   />
                 </View>
-              )}
+              ) : null}
             </View>
 
             {/* Buttons */}

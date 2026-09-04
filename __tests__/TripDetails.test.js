@@ -6,6 +6,7 @@ import TripDetailsScreen from '../src/features/trips/screens/TripDetailsScreen';
 import TripProgressScreen from '../src/features/trips/screens/TripProgressScreen';
 import AddLoadScreen from '../src/features/trips/screens/AddLoadScreen';
 import {AddAdvanceSheet} from '../src/features/trips/sheets/AddAdvanceSheet';
+import {AddChargeSheet} from '../src/features/trips/sheets/AddChargeSheet';
 import {AddDriverBalanceSheet} from '../src/features/trips/sheets/AddDriverBalanceSheet';
 
 jest.mock('@react-navigation/native', () => {

@@ -6,6 +6,7 @@ import {
   mockCreateTrip,
   mockUpdateTripStatus,
   mockAddAdvance,
+  mockAddCharge,
   mockAddDriverBalance,
 } from './trips.mock';
 
@@ -29,7 +30,13 @@ export function mapTripFromBackend(item) {
     billingType: item.partybillingtype || item.billingType || 'Fixed',
     freightAmount: Number(item.freightamt || item.freightAmount || 0),
     advanceAmount: Number(item.advanceAmount || 0),
-    pendingBalance: Number(item.freightamt || 0) - Number(item.advanceAmount || 0),
+    chargesAmount: Number(item.chargesAmount || item.totaladd || 0),
+    paymentsAmount: Number(item.paymentsAmount || 0),
+    pendingBalance:
+      Number(item.freightamt || item.freightAmount || 0) +
+      Number(item.chargesAmount || item.totaladd || 0) -
+      Number(item.advanceAmount || 0) -
+      Number(item.paymentsAmount || 0),
     material: item.material || '',
     status: item.tripstatus || item.status || 'Started',
     notes: item.remark || item.notes || '',
@@ -209,6 +216,31 @@ export const tripsApi = {
         throw error;
       }
       return {id, ...data};
+    }
+  },
+
+  addCharge: async (id, data) => {
+    const session = await authStorage.getSession();
+    // Matches ChargeEntryController@store — cid carries the charge type id
+    // from the charges table; chargetype is 'party' or 'supplier'; billadjustment
+    // is 'add' (to bill) or 'reduce' (from bill).
+    const body = {
+      tripid: id,
+      cid: data.cid != null ? Number(data.cid) : null,
+      amount: Number(data.amount) || 0,
+      chargedate: toIsoDate(data.date),
+      chargetype: data.chargeType || '',
+      billadjustment: data.billAdjustment || 'add',
+      remark: data.note || '',
+    };
+    try {
+      const response = await apiClient.post('/chargeentries', body);
+      return response.data?.data || response.data;
+    } catch (error) {
+      if (session?.accessToken) {
+        throw error;
+      }
+      return mockAddCharge({id, ...data});
     }
   },
 
