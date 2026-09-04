@@ -12,14 +12,27 @@ class TripController extends Controller
     /**
      * Display a listing of trips.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $trips = Trip::orderBy('tripid', 'desc')->get();
-
+        $user = $request->user();
+        $trips = Trip::where('companyid',$user->companyid)->orderBy('tripid', 'desc')->get();
+          $totalfreightamt = $trips->sum('freightamt');
+          $totalAdd = Chargeentry::where('companyid',$user->companyid)
+            ->where('billadjustment', 'add')
+            ->sum('amount');
+         $totalReduce = Chargeentry::where('companyid',$user->companyid)
+            ->where('billadjustment', 'reduce')
+            ->sum('amount');
+            $totaladvance = Advanceentry::where('companyid',$user->companyid)
+            ->sum('amount');
+             $totalpayment = Trippayment::where('companyid',$user->companyid)
+            ->sum('amount');
+            $partybal=$totalfreightamt -  $totaladvance + $totalAdd - $totalReduce -$totalpayment;
         return response()->json([
             'status'  => true,
             'message' => 'Trip list fetched successfully',
-            'data'    => $trips
+            'data'    => $trips,
+              'partybal' => number_format($partybal, 2, '.', ''),
         ], 200);
     }
 
@@ -29,6 +42,8 @@ class TripController extends Controller
      */
     public function store(Request $request)
     {
+        
+        $user = $request->user();
         $validator = Validator::make($request->all(), [
             'tripdate'            => 'nullable|date',
             'truckid'             => 'nullable|integer',
@@ -62,7 +77,7 @@ class TripController extends Controller
         }
 
 
-        $lastTrip = Trip::orderBy('tripid', 'desc')->first();
+        $lastTrip = Trip::where('companyid',$user->companyid)->orderBy('tripid', 'desc')->first();
 
         if ($lastTrip) {
             $lastNumber = (int) substr($lastTrip->tripno, 4);
@@ -100,7 +115,8 @@ class TripController extends Controller
 
             'material'            => $request->material,
             'remark'              => $request->remark,
-            'tripstatus'          => 'Started' 
+            'tripstatus'          => 'Started' ,
+             'companyid' => $user->companyid,
         ]);
 
         return response()->json([
@@ -155,19 +171,14 @@ class TripController extends Controller
             'driverid'            => 'nullable|integer',
             'originid'            => 'nullable|integer',
             'destinationid'       => 'nullable|integer',
-
             'partybillingtype'    => 'nullable|string|max:255',
-
             'rate'                => 'nullable|numeric',
             'wt'                  => 'nullable|numeric',
             'freightamt'          => 'nullable|numeric',
-
             'supplierbillingtype' => 'nullable|string|max:255',
-
             'sup_freightamt'      => 'nullable|numeric',
             'sup_rate'            => 'nullable|numeric',
             'supwt'               => 'nullable|numeric',
-
             'material'            => 'nullable|string|max:255',
             'remark'              => 'nullable|string',
         ]);
@@ -186,12 +197,10 @@ class TripController extends Controller
 
         $trip->update([
             'tripdate'            => $request->tripdate,
-
             'truckid'             => $request->truckid,
             'partyid'             => $request->partyid,
             'supplierid'          => $request->supplierid,
             'driverid'            => $request->driverid,
-
             'originid'            => $request->originid,
             'destinationid'       => $request->destinationid,
 
@@ -200,8 +209,7 @@ class TripController extends Controller
             'rate'                => $request->rate ?? 0,
             'wt'                  => $request->wt ?? 0,
             'freightamt'          => $request->freightamt ?? 0,
-
-            'supplierbillingtype' => $request->supplierbillingtype,
+         'supplierbillingtype' => $request->supplierbillingtype,
 
             'sup_freightamt'      => $request->sup_freightamt ?? 0,
             'sup_rate'            => $request->sup_rate ?? 0,
@@ -240,6 +248,7 @@ class TripController extends Controller
             'message' => 'Trip deleted successfully'
         ], 200);
     }
+    
     public function updateStatus(Request $request,$tripid)
 {
     
