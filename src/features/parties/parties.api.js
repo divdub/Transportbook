@@ -56,25 +56,25 @@ export const partiesApi = {
 
   createParty: async payload => {
     const session = await authStorage.getSession();
-    try {
-      const body = {
-        partyname: payload.name || payload.partyname,
-        mobile: payload.phoneNumber || payload.mobile || '9876543210',
-        opening_balance: payload.openingBalance || payload.balance || 0,
-        companyname: payload.companyName || payload.category || '',
-        gstno: payload.gstNo || payload.gstno || '',
-        panno: payload.panNo || payload.panno || '',
-        addressline1: payload.address || '',
-      };
+    const hasToken = Boolean(session?.accessToken);
+    const body = {
+      partyname: payload.name || payload.partyname,
+      mobile: payload.phoneNumber || payload.mobile,
+      opening_balance: payload.openingBalance ?? payload.balance ?? 0,
+      companyname: payload.companyName || payload.category || '',
+      gstno: payload.gstNo || payload.gstno || '',
+      panno: payload.panNo || payload.panno || '',
+      addressline1: payload.address || '',
+    };
+    if (hasToken) {
       const response = await apiClient.post('/parties', body);
       const raw = response.data?.data || response.data;
       if (raw && (raw.partyid || raw.id)) {
         return mapPartyFromBackend(raw);
       }
-    } catch (error) {
-      if (session?.accessToken) {
-        throw error;
-      }
+      // Backend may not return the created party; refetch is the frontend's
+      // job (see handleQuickAdd). Still signal success.
+      return false;
     }
     return mockCreateParty(payload);
   },
