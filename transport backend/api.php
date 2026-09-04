@@ -12,7 +12,7 @@ use App\Http\Controllers\Api\CityController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\StateController;
 use App\Http\Controllers\Api\CompanyController;
-
+use App\Http\Controllers\Api\AdvanceEntryController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -35,5 +35,5 @@ Route::apiResource('expenses', ExpenseController::class);
 Route::apiResource('states', StateController::class);
 Route::apiResource('companies', CompanyController::class);
 Route::patch('/trips/{tripid}/status', [TripController::class, 'updateStatus']);
-
+Route::apiResource('advanceentries', AdvanceEntryController::class);
 });
