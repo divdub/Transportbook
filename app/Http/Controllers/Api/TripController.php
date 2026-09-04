@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Trip;
+use App\Models\Advanceentry;
+use App\Models\Trippayment;
+use App\Models\Chargeentry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -32,7 +35,7 @@ class TripController extends Controller
             'status'  => true,
             'message' => 'Trip list fetched successfully',
             'data'    => $trips,
-              'partybal' => number_format($partybal, 2, '.', ''),
+            'partybal' => number_format($partybal, 2, '.', ''),
         ], 200);
     }
 
@@ -115,8 +118,10 @@ class TripController extends Controller
 
             'material'            => $request->material,
             'remark'              => $request->remark,
-            'tripstatus'          => 'Started' ,
+            'startkm'              => $request->startkm,
+            'tripstatus'          => 'started' ,
              'companyid' => $user->companyid,
+             'userid' => $user->userid,
         ]);
 
         return response()->json([
@@ -214,7 +219,7 @@ class TripController extends Controller
             'sup_freightamt'      => $request->sup_freightamt ?? 0,
             'sup_rate'            => $request->sup_rate ?? 0,
             'supwt'               => $request->supwt ?? 0,
-
+           'startkm'              => $request->startkm,
             'material'            => $request->material,
             'remark'              => $request->remark,
         ]);
@@ -253,7 +258,7 @@ class TripController extends Controller
 {
     
     $trip = Trip::find($tripid);
-
+  $user = $request->user();
     if (!$trip) {
         return response()->json([
             'status'  => false,
@@ -261,15 +266,88 @@ class TripController extends Controller
         ], 404);
     }
 
-    // Update only status
-    $trip->tripstatus = $request->tripstatus;
+     $statuses = [
+        'started',
+        'completed',
+        'pod_received',
+        'pod_submitted',
+        'settled'
+    ];
+
+    $currentStatus = $trip->tripstatus;
+    $newStatus = $request->tripstatus;
+
+  
+
+        
+    
+
+        $currentIndex = array_search($currentStatus, $statuses);
+        $newIndex = array_search($newStatus, $statuses);
+
+
+        if ($newStatus === $currentStatus) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Trip is already in ' . $currentStatus . ' status.'
+            ], 422);
+        }
+
+        if ($newIndex !== $currentIndex + 1) {
+
+            $nextStatus = $statuses[$currentIndex + 1] ?? null;
+
+            return response()->json([
+                'status' => false,
+                'message' => "Invalid status change. Current status is {$currentStatus}. Next status must be {$nextStatus}."
+            ], 422);
+        }
+    
+    $trip->tripstatus = $newStatus;
+
+    if ($newStatus === 'started') {
+
+
+        if ($request->filled('startphoto')) {
+            $trip->startphoto = $request->startphoto;
+        }
+    }
+
+
+
+    if ($newStatus === 'completed') {
+
+        $trip->endkm = $request->endkm;
+        $trip->enddate =$request->enddate;
+    }
+
+    if ($newStatus === 'pod_received') {
+
+        $trip->podrecdate = $request->podrecdate;
+         if ($request->filled('podupload')) {
+            $trip->podupload = $request->podupload;
+        }
+    }
+
+
+    if ($newStatus === 'pod_submitted') {
+      $trip->podsubmitdate = $request->podsubmitdate;
+    }
+      if ($newStatus === 'settled') {
+       $payment = Trippayment::create([ 'amount' => $request->amount,
+       'paymentdate' => $request->paymentdate, 'tripid' => $tripid, 
+       'paymenttype' => 'paymenttype', 'paymentmode' => $request->paymentmode,
+       'remark' => $request->remark, 'companyid' => $user->companyid, 'userid' => $user->userid, ]);
+    }
+
     $trip->save();
 
     return response()->json([
-        'status'  => true,
-        'message' => 'Trip status updated successfully',
-        'data'    => $trip
+        'status' => true,
+        'message' => 'Trip status updated successfully.',
+        'data' => $trip
     ], 200);
+ 
 }
 }
 ?>

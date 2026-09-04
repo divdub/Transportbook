@@ -13,6 +13,9 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\StateController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\AdvanceEntryController;
+use App\Http\Controllers\Api\ChargeController;
+use App\Http\Controllers\Api\ChargeEntryController;
+use App\Http\Controllers\Api\TripPaymentController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -36,4 +39,7 @@ Route::apiResource('states', StateController::class);
 Route::apiResource('companies', CompanyController::class);
 Route::patch('/trips/{tripid}/status', [TripController::class, 'updateStatus']);
 Route::apiResource('advanceentries', AdvanceEntryController::class);
+Route::apiResource('charges', ChargeController::class);
+Route::apiResource('chargeentries', ChargeEntryController::class);
+Route::apiResource('trippayments', TripPaymentController::class);
 });
