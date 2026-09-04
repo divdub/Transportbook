@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Api;
-use App\Models\AdvanceEntry;
+use App\Models\Advanceentry;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
@@ -12,7 +12,7 @@ class AdvanceEntryController extends Controller
      */
     public function index(Request $request)
     {
-        $advances = AdvanceEntry::where('tripid', $request->tripid)
+        $advances = Advanceentry::where('tripid', $request->tripid)
         ->where('advancetype', $request->advancetype)
         ->orderByDesc('advanceid')
         ->get();
@@ -30,7 +30,7 @@ class AdvanceEntryController extends Controller
     public function store(Request $request)
     {
          $user = $request->user();
-          $advance = AdvanceEntry::create([
+          $advance = Advanceentry::create([
             'amount' => $request->amount,
             'advancename' => $request->advancename,
             'advdate' => $request->advdate,
@@ -65,7 +65,7 @@ class AdvanceEntryController extends Controller
      */
     public function update(Request $request, string $id)
     {
-          $advance = AdvanceEntry::find($id);
+          $advance = Advanceentry::find($id);
 
         if (!$advance) {
             return response()->json([
@@ -96,7 +96,7 @@ class AdvanceEntryController extends Controller
      */
     public function destroy(string $id)
     {
-         $advance = AdvanceEntry::find($id);
+         $advance = Advanceentry::find($id);
 
         if (!$advance) {
             return response()->json([
