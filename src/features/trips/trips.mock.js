@@ -1,5 +1,3 @@
-import {addReceivablesFromTrip} from '../dashboard/dashboard.mock';
-
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // In-memory only — resets on app reload. Seed list is empty until real
@@ -66,7 +64,6 @@ export const mockCreateTrip = async tripData => {
   };
 
   mockTrips = [newTrip, ...mockTrips];
-  addReceivablesFromTrip(freight);
   return newTrip;
 };
 

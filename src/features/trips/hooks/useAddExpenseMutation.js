@@ -39,6 +39,7 @@ export function useAddExpenseMutation() {
         return updated;
       });
       queryClient.invalidateQueries({queryKey: ['trips']});
+      queryClient.invalidateQueries({queryKey: ['dashboard']});
     },
   });
 }

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {useQueries} from '@tanstack/react-query';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppButton} from '../../../components/common/AppButton';
@@ -21,6 +22,7 @@ import {AddPaymentSheet} from '../sheets/AddPaymentSheet';
 import {TripStatusSheet} from '../sheets/TripStatusSheet';
 import {useTripDetailsQuery} from '../hooks/useTripDetailsQuery';
 import {useTripsQuery} from '../hooks/useTripsQuery';
+import {tripsApi} from '../trips.api';
 import {useUpdateTripStatusMutation} from '../hooks/useUpdateTripStatusMutation';
 import {useAddAdvanceMutation} from '../hooks/useAddAdvanceMutation';
 import {useAddChargeMutation} from '../hooks/useAddChargeMutation';
@@ -117,6 +119,19 @@ export default function TripDetailsScreen() {
     return [...grouped].sort((a, b) => new Date(b.tripDate) - new Date(a.tripDate) || b.id.localeCompare(a.id));
   }, [displayTrip, allTrips]);
 
+  // Fetch each load's full detail (advance + charge entries and computed
+  // totals) so the grouped Loads tab shows real stored amounts even though the
+  // trips list rows only carry bare trip data.
+  const loadDetailResults = useQueries({
+    queries: loads.map(load => ({
+      queryKey: ['trip', load.id],
+      queryFn: () => tripsApi.getTripById(load.id),
+      enabled: activeTab === 'Loads',
+      staleTime: 15000,
+      retry: 1,
+    })),
+  });
+
   const displayLoads = useMemo(() => {
     if (!loads || loads.length === 0) return [];
     const partyById = new Map(parties.map(p => [String(p.id), p.name]));
@@ -126,11 +141,45 @@ export default function TripDetailsScreen() {
     const supplierById = new Map(
       suppliers.map(s => [String(s.id), s.suppliername || s.name || '']),
     );
+    // The grouped loads come from the trips list, whose rows carry no
+    // advance/charge totals. Overlay the fetched per-load detail (entry lists +
+    // computed money) so the stored backend amounts actually display.
+    const loadDetailById = new Map();
+    loadDetailResults.forEach((result, index) => {
+      if (result.data) {
+        loadDetailById.set(loads[index]?.id, result.data);
+      }
+    });
     return loads.map(l => {
       const truck = trucks.find(trk => String(trk.id) === String(l.truckId));
       const truckSupplierName = truck?.supplierName || truck?.ownerName || '';
+      const detail = loadDetailById.get(l.id);
       return {
         ...l,
+        ...(detail
+          ? {
+              freightAmount: Number(detail.freightAmount) || Number(l.freightAmount) || 0,
+              advanceAmount: Number(detail.advanceAmount) || 0,
+              chargesAmount: Number(detail.chargesAmount) || 0,
+              paymentsAmount: Number(detail.paymentsAmount) || 0,
+              pendingBalance: Number(detail.pendingBalance) || 0,
+              advances: detail.advances || [],
+              charges: detail.charges || [],
+              expenses: detail.expenses || [],
+            }
+          : {
+              freightAmount: Number(l.freightAmount) || 0,
+              advanceAmount: Number(l.advanceAmount) || 0,
+              chargesAmount: Number(l.chargesAmount) || 0,
+              paymentsAmount: Number(l.paymentsAmount) || 0,
+              pendingBalance:
+                l.pendingBalance !== undefined
+                  ? Number(l.pendingBalance)
+                  : Number(l.freightAmount || 0) -
+                    Number(l.advanceAmount || 0) +
+                    Number(l.chargesAmount || 0) -
+                    Number(l.paymentsAmount || 0),
+            }),
         partyName:
           l.partyName ||
           (l.partyId && partyById.get(String(l.partyId))) ||
@@ -149,20 +198,9 @@ export default function TripDetailsScreen() {
         origin: l.origin || (l.originId && cityById.get(String(l.originId))) || 'Origin',
         destination:
           l.destination || (l.destinationId && cityById.get(String(l.destinationId))) || 'Destination',
-        freightAmount: Number(l.freightAmount) || 0,
-        advanceAmount: Number(l.advanceAmount) || 0,
-        chargesAmount: Number(l.chargesAmount) || 0,
-        paymentsAmount: Number(l.paymentsAmount) || 0,
-        pendingBalance:
-          l.pendingBalance !== undefined
-            ? Number(l.pendingBalance)
-            : Number(l.freightAmount || 0) -
-              Number(l.advanceAmount || 0) +
-              Number(l.chargesAmount || 0) -
-              Number(l.paymentsAmount || 0),
       };
     });
-  }, [loads, parties, trucks, drivers, cities, suppliers]);
+  }, [loads, loadDetailResults, parties, trucks, drivers, cities, suppliers]);
 
   const hasMultipleLoads = loads.length > 1;
   const tabs = useMemo(

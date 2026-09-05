@@ -11,9 +11,49 @@ import {
   mockAddExpense,
 } from './trips.mock';
 import {chargesApi} from './charges.api';
+import {advancesApi} from './advances.api';
 
 export function mapTripFromBackend(item) {
   if (!item) return null;
+  const freightAmount = Number(item.freightamt ?? item.freightAmount ?? 0);
+  // Prefer server-side totals when the backend row carries them; otherwise sum
+  // the entry lists attached by getTripById so a bare trip row still derives
+  // the amounts the way the backend computes them.
+  const advances = item.advances || [];
+  const charges = item.charges || [];
+  const advanceAmount =
+    item.advanceamount != null
+      ? Number(item.advanceamount)
+      : advances.length
+        ? advances.reduce((acc, a) => acc + (Number(a.amount) || 0), 0)
+        : Number(item.advanceAmount ?? 0);
+  const chargesAmount =
+    item.chargesamount != null
+      ? Number(item.chargesamount)
+      : item.totaladd != null
+        ? Number(item.totaladd)
+        : charges.length
+          ? charges.reduce(
+              (acc, c) =>
+                acc +
+                (Number(c.amount) || 0) * (c.billAdjustment === 'reduce' ? -1 : 1),
+              0,
+            )
+          : Number(item.chargesAmount ?? 0);
+  const paymentsAmount = Number(item.paymentsamount ?? item.paymentsAmount ?? 0);
+  // The backend calculates the trip balance and returns it (pending_balance /
+  // pendingbalance). When it isn't provided, derive it from the totals so the
+  // app never relies on a single baked-in value.
+  const backendBalance =
+    item.pendingbalance != null
+      ? Number(item.pendingbalance)
+      : item.pending_balance != null
+        ? Number(item.pending_balance)
+        : null;
+  const pendingBalance =
+    backendBalance != null
+      ? backendBalance
+      : Math.max(0, freightAmount + chargesAmount - advanceAmount - paymentsAmount);
   return {
     id: String(item.tripid || item.id || item.tripno),
     tripno: item.tripno || item.id,
@@ -31,15 +71,11 @@ export function mapTripFromBackend(item) {
     destination: item.destination_name || item.destination || '',
     tripDate: item.tripdate || item.tripDate || new Date().toLocaleDateString('en-GB'),
     billingType: item.partybillingtype || item.billingType || 'Fixed',
-    freightAmount: Number(item.freightamt || item.freightAmount || 0),
-    advanceAmount: Number(item.advanceAmount || 0),
-    chargesAmount: Number(item.chargesAmount || item.totaladd || 0),
-    paymentsAmount: Number(item.paymentsAmount || 0),
-    pendingBalance:
-      Number(item.freightamt || item.freightAmount || 0) +
-      Number(item.chargesAmount || item.totaladd || 0) -
-      Number(item.advanceAmount || 0) -
-      Number(item.paymentsAmount || 0),
+    freightAmount,
+    advanceAmount,
+    chargesAmount,
+    paymentsAmount,
+    pendingBalance,
     material: item.material || '',
     status: mapTripStatusFromBackend(item.tripstatus || item.status),
     notes: item.remark || item.notes || '',
@@ -132,6 +168,40 @@ function buildStatusTimeline(item, status) {
   }));
 }
 
+// Running totals derived from a trip's advance/charge entry lists. Used by the
+// add-advance / add-charge mutation hooks to keep the trip-detail cache's
+// advanceAmount / chargesAmount / pendingBalance in sync the moment an entry is
+// saved, without waiting for a backend refetch.
+function totalAdvanceFromEntries(advances = []) {
+  return advances.reduce((acc, a) => acc + (Number(a.amount) || 0), 0);
+}
+
+function netChargeFromEntries(charges = []) {
+  return charges.reduce((acc, c) => {
+    const amt = Number(c.amount) || 0;
+    return c.billAdjustment === 'reduce' ? acc - amt : acc + amt;
+  }, 0);
+}
+
+// Recompute a trip's financial summary. When a backend returns summary totals
+// but no entry lists (advances/charges empty), the existing totals are kept and
+// only the just-added delta is applied so previously recorded amounts survive.
+export function recomputeTripBalances(trip, {advanceDelta = 0, chargeDelta = 0} = {}) {
+  if (!trip) return trip;
+  const freight = Number(trip.freightAmount) || 0;
+  const payments = Number(trip.paymentsAmount) || 0;
+  const advances = trip.advances || [];
+  const charges = trip.charges || [];
+  const advanceAmount = advances.length
+    ? totalAdvanceFromEntries(advances)
+    : (Number(trip.advanceAmount) || 0) + advanceDelta;
+  const chargesAmount = charges.length
+    ? netChargeFromEntries(charges)
+    : (Number(trip.chargesAmount) || 0) + chargeDelta;
+  const pendingBalance = Math.max(0, freight + chargesAmount - advanceAmount - payments);
+  return {...trip, advanceAmount, chargesAmount, pendingBalance};
+}
+
 export const tripsApi = {
   getTrips: async params => {
     const session = await authStorage.getSession();
@@ -158,15 +228,18 @@ export const tripsApi = {
       if (!raw) {
         return null;
       }
-      // The trip detail endpoint doesn't include individual charge entries,
-      // so fetch them separately and attach for the Party tab Charges list.
-      let charges = [];
-      try {
-        charges = await chargesApi.getChargeEntries(id);
-      } catch {
-        // Charge entries fetch failed; trip still loads without the list.
-      }
-      return mapTripFromBackend({...raw, charges});
+      // The trip detail endpoint doesn't include the advance/charge entry
+      // lists, so fetch them (and a per-trip totals shortage) separately and
+      // attach them so the financial summary derives real stored amounts.
+      const [advanceEntries, chargeEntries] = await Promise.all([
+        advancesApi.getAdvanceEntries(id),
+        chargesApi.getChargeEntries(id),
+      ]);
+      return mapTripFromBackend({
+        ...raw,
+        advances: advanceEntries,
+        charges: chargeEntries,
+      });
     } catch (error) {
       if (session?.accessToken) {
         throw error;

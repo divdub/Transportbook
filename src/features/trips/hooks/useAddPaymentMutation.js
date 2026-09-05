@@ -9,6 +9,7 @@ export function useAddPaymentMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['trips']});
       queryClient.invalidateQueries({queryKey: ['tripDetails']});
+      queryClient.invalidateQueries({queryKey: ['dashboard']});
     },
   });
 }

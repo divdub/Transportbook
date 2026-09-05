@@ -7,7 +7,6 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 let mockDashboardState = {
   user: {name: 'Rajesh'},
   overview: {
-    receivables: 0,
     trucks: 0,
     parties: 0,
     pendingPods: 0,
@@ -31,13 +30,22 @@ export const mockFetchDashboard = async () => {
   let pendingPods = 0;
   let trucks = 0;
   let parties = 0;
+  let receivables = 0;
   try {
     const trips = await tripsApi.getTrips({});
     activeTrips = trips.filter(t => t.status !== 'Settled').length;
     pendingPods = trips.filter(t => POD_PENDING_STATUSES.includes(t.status)).length;
+    // Total Receivables is the sum of every trip's outstanding balance, so it
+    // tracks advances/charges/payments live instead of a static trip-creation
+    // counter.
+    receivables = trips.reduce(
+      (acc, trip) => acc + (Number(trip.pendingBalance) || 0),
+      0,
+    );
   } catch {
     activeTrips = 0;
     pendingPods = 0;
+    receivables = 0;
   }
   try {
     const truckList = await trucksApi.getTrucks({});
@@ -55,15 +63,11 @@ export const mockFetchDashboard = async () => {
     ...mockDashboardState,
     overview: {
       ...mockDashboardState.overview,
+      receivables,
       activeTrips,
       pendingPods,
       trucks,
       parties,
     },
   };
-};
-
-export const addReceivablesFromTrip = freightAmount => {
-  const amount = Number(freightAmount) || 0;
-  mockDashboardState.overview.receivables += amount;
 };

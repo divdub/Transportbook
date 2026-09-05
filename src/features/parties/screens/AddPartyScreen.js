@@ -50,6 +50,7 @@ export default function AddPartyScreen() {
         <FormField
           control={control}
           name="name"
+          label="Party Name *"
           placeholder="Party Name"
           error={errors.name?.message}
         />
@@ -86,6 +87,7 @@ export default function AddPartyScreen() {
         <FormField
           control={control}
           name="phoneNumber"
+          label="Mobile Number *"
           placeholder="Mobile Number"
           keyboardType="number-pad"
           error={errors.phoneNumber?.message}

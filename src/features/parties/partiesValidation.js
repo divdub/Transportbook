@@ -4,10 +4,12 @@ const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 const PINCODE_REGEX = /^[1-9][0-9]{5}$/;
 
-// No field is mandatory yet per current product decision — every field
-// below is optional, but format is still validated when a value is present.
+// The backend PartyController@store requires partyname + mobile (its
+// validator rejects the request with 422 otherwise), so those two are
+// mandatory; every remaining field is optional but still format-checked
+// when a value is present.
 export const addPartySchema = z.object({
-  name: z.string().trim().optional().or(z.literal('')),
+  name: z.string().trim().min(1, 'Party Name is required'),
   companyName: z.string().trim().optional().or(z.literal('')),
   gstNumber: z
     .string()
@@ -22,9 +24,8 @@ export const addPartySchema = z.object({
   phoneNumber: z
     .string()
     .trim()
-    .regex(/^[0-9]{10}$/, 'Enter a valid 10-digit phone number')
-    .optional()
-    .or(z.literal('')),
+    .min(1, 'Mobile Number is required')
+    .regex(/^[0-9]{10}$/, 'Enter a valid 10-digit phone number'),
   addressLine1: z.string().trim().optional().or(z.literal('')),
   addressLine2: z.string().trim().optional().or(z.literal('')),
   state: z.string().trim().optional().or(z.literal('')),

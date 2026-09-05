@@ -9,6 +9,7 @@ export function useUpdateTripStatusMutation() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({queryKey: ['trips']});
       queryClient.invalidateQueries({queryKey: ['trip', variables.id]});
+      queryClient.invalidateQueries({queryKey: ['dashboard']});
     },
   });
 }

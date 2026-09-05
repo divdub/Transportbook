@@ -1120,7 +1120,14 @@ export default function AddTripScreen() {
             <AppButton
               title={isPending ? 'Saving...' : 'Save Trip'}
               onPress={handleSubmit(onSubmit)}
-              disabled={isPending || !formValues.partyName || !formValues.truckNumber || !isValid}
+              disabled={
+                isPending ||
+                !formValues.partyName ||
+                !isValid ||
+                (loadParams
+                  ? !formValues.origin || !formValues.destination || !formValues.freightAmount
+                  : !formValues.truckNumber)
+              }
               style={styles.saveTripBtn}
             />
           </View>
