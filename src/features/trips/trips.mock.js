@@ -23,6 +23,7 @@ export const mockCreateTrip = async tripData => {
   const freight = Number(tripData.freightAmount) || 0;
   const newTrip = {
     id: `TRIP-${Math.floor(1000 + Math.random() * 9000)}`,
+    referenceNo: tripData.referenceNo || null,
     partyName: tripData.partyName || 'Party Name',
     truckNumber: tripData.truckNumber ? tripData.truckNumber.toUpperCase() : 'KA 01 AA 0000',
     driverName: tripData.driverName || 'Unassigned',
@@ -69,7 +70,7 @@ export const mockCreateTrip = async tripData => {
   return newTrip;
 };
 
-export const mockUpdateTripStatus = async ({id, status, date, endKm, photoBase64, podUrl}) => {
+export const mockUpdateTripStatus = async ({id, status, date, endKm, photoBase64, podUrl, amount, paymentMode}) => {
   await delay(350);
   const index = mockTrips.findIndex(t => t.id === id);
   if (index === -1) throw new Error('Trip not found');
@@ -110,6 +111,13 @@ export const mockUpdateTripStatus = async ({id, status, date, endKm, photoBase64
     ...(status === 'POD Submitted'
       ? {
           podSubmittedDate: date || trip.podSubmittedDate,
+        }
+      : {}),
+    ...(status === 'Settled'
+      ? {
+          settledDate: date || trip.settledDate || trip.statusTimeline?.find(t => t.status === 'Settled')?.date,
+          settlementAmount: amount != null && amount !== '' ? amount : trip.settlementAmount,
+          paymentMode: paymentMode || trip.paymentMode,
         }
       : {}),
   };

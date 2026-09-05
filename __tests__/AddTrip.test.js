@@ -6,6 +6,15 @@ import AddTripScreen from '../src/features/trips/screens/AddTripScreen';
 import {AddMoreDetailsSheet} from '../src/features/trips/sheets/AddMoreDetailsSheet';
 import {addTripSchema} from '../src/features/trips/tripsValidation';
 
+let mockRouteParams = {};
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+  return {
+    ...actual,
+    useRoute: () => ({params: mockRouteParams}),
+  };
+});
+
 jest.mock('../src/features/parties/hooks/usePartiesQuery', () => ({
   usePartiesQuery: () => ({
     data: [
@@ -125,6 +134,38 @@ describe('Trips Module - Phase 2 & 3 (Add Trip & Add More Details)', () => {
       );
     });
     expect(tree).toBeDefined();
+  });
+
+  it('prefills truck, driver and origin when opened as an Add Load', async () => {
+    mockRouteParams = {
+      // Parent trip rows carry only numeric FKs (backend returns no names).
+      truckId: 'T-2',
+      truckNumber: '',
+      driverId: 'D-1',
+      driverName: '',
+      originId: 54,
+      originName: 'Hyderabad',
+      referenceNo: 'REF000001',
+      parentTripNo: 'TRIP-1',
+    };
+    let tree;
+    ReactTestRenderer.act(() => {
+      tree = ReactTestRenderer.create(
+        <Wrapper>
+          <AddTripScreen />
+        </Wrapper>,
+      );
+    });
+    const {Text} = require('react-native');
+    const texts = tree.root
+      .findAllByType(Text)
+      .map(n => String(n.props.children || '').trim())
+      .filter(Boolean);
+    // Real names resolved dynamically from the trucks/drivers lists by ID.
+    expect(texts).toContain('KA02CD5678');
+    expect(texts).toContain('Ramesh Kumar');
+    expect(texts).toContain('Hyderabad');
+    mockRouteParams = {};
   });
 
   it('resolves supplier name + id for a market truck', () => {

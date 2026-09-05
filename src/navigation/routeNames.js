@@ -26,5 +26,4 @@ export const routes = {
   addTrip: 'AddTrip',
   tripDetails: 'TripDetails',
   tripProgress: 'TripProgress',
-  addLoad: 'AddLoad',
 };

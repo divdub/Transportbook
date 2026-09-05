@@ -14,7 +14,6 @@ import TripsListScreen from '../features/trips/screens/TripsListScreen';
 import AddTripScreen from '../features/trips/screens/AddTripScreen';
 import TripDetailsScreen from '../features/trips/screens/TripDetailsScreen';
 import TripProgressScreen from '../features/trips/screens/TripProgressScreen';
-import AddLoadScreen from '../features/trips/screens/AddLoadScreen';
 import QuickActionSheet from '../features/quickActions/components/QuickActionSheet';
 import {quickActionSheetController} from '../features/quickActions/quickActionSheetController';
 import {routes} from './routeNames';
@@ -62,11 +61,6 @@ export default function AppNavigator() {
         <Stack.Screen
           name={routes.tripProgress}
           component={TripProgressScreen}
-          options={{headerShown: false}}
-        />
-        <Stack.Screen
-          name={routes.addLoad}
-          component={AddLoadScreen}
           options={{headerShown: false}}
         />
         <Stack.Screen

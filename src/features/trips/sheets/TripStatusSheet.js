@@ -29,6 +29,8 @@ function getFormattedToday() {
   return `${now.getDate()} ${SHORT_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
 }
 
+const PAYMENT_MODES = ['Cash', 'Cheque', 'UPI', 'Bank Transfer', 'Other'];
+
 function sheetConfig(status) {
   switch (status) {
     case 'Completed':
@@ -37,6 +39,7 @@ function sheetConfig(status) {
         subtitle: 'Record the end reading for this trip.',
         showEndKm: true,
         showPhoto: false,
+        showAmount: false,
         dateLabel: 'Trip End Date',
         saveLabel: 'Mark Complete',
       };
@@ -46,6 +49,7 @@ function sheetConfig(status) {
         subtitle: 'Record when the delivery proof was received.',
         showEndKm: false,
         showPhoto: true,
+        showAmount: false,
         dateLabel: 'POD Received Date',
         saveLabel: 'Confirm',
       };
@@ -55,8 +59,19 @@ function sheetConfig(status) {
         subtitle: 'Record when the delivery proof was submitted.',
         showEndKm: false,
         showPhoto: false,
+        showAmount: false,
         dateLabel: 'POD Submitted Date',
         saveLabel: 'Confirm',
+      };
+    case 'Settled':
+      return {
+        title: 'Settle Party',
+        subtitle: 'Record the settlement amount for this trip.',
+        showEndKm: false,
+        showPhoto: false,
+        showAmount: true,
+        dateLabel: 'Settlement Date',
+        saveLabel: 'Settle Party',
       };
     default:
       return {
@@ -64,15 +79,20 @@ function sheetConfig(status) {
         subtitle: '',
         showEndKm: false,
         showPhoto: false,
+        showAmount: false,
         dateLabel: 'Date',
         saveLabel: 'Confirm',
       };
   }
 }
 
+const AMOUNT_REGEX = /^\d+(\.\d{1,2})?$/;
+
 export function TripStatusSheet({visible, status, onConfirm, onClose, isPending}) {
   const [date, setDate] = useState(getFormattedToday());
   const [endKm, setEndKm] = useState('');
+  const [settlementAmount, setSettlementAmount] = useState('');
+  const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES[0]);
   const [photo, setPhoto] = useState(null); // {uri, base64, mime}
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [photoPickerVisible, setPhotoPickerVisible] = useState(false);
@@ -84,6 +104,8 @@ export function TripStatusSheet({visible, status, onConfirm, onClose, isPending}
     if (visible) {
       setDate(getFormattedToday());
       setEndKm('');
+      setSettlementAmount('');
+      setPaymentMode(PAYMENT_MODES[0]);
       setPhoto(null);
     }
   }, [visible, status]);
@@ -165,10 +187,16 @@ export function TripStatusSheet({visible, status, onConfirm, onClose, isPending}
       date,
       endKm: endKm.trim(),
       photoBase64: config.showPhoto ? buildPhotoBase64() : null,
+      amount: settlementAmount.trim(),
+      paymentMode,
     });
   };
 
-  const canConfirm = Boolean(date) && !isPending;
+  const amountIsValid = config.showAmount
+    ? AMOUNT_REGEX.test(settlementAmount.trim()) && Number(settlementAmount) > 0
+    : true;
+
+  const canConfirm = Boolean(date) && amountIsValid && !isPending;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -215,6 +243,51 @@ export function TripStatusSheet({visible, status, onConfirm, onClose, isPending}
                         <Icon name="counter" size={20} color={colors.primary} />
                       </View>
                     </View>
+                  ) : null}
+
+                  {/* Settlement amount + payment mode — only for Settled */}
+                  {config.showAmount ? (
+                    <>
+                      <View style={styles.fieldWrapper}>
+                        <View style={styles.inputWithSuffix}>
+                          <TextInput
+                            value={settlementAmount}
+                            onChangeText={setSettlementAmount}
+                            placeholder="Settlement Amount"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="decimal-pad"
+                            style={styles.flexInput}
+                          />
+                          <Icon name="currency-inr" size={20} color={colors.primary} />
+                        </View>
+                      </View>
+                      <View style={styles.fieldWrapper}>
+                        <AppText variant="caption" color="textMuted" style={styles.modeLabel}>
+                          Payment Mode
+                        </AppText>
+                        <View style={styles.modeRow}>
+                          {PAYMENT_MODES.map(mode => {
+                            const selected = paymentMode === mode;
+                            return (
+                              <TouchableOpacity
+                                key={mode}
+                                onPress={() => setPaymentMode(mode)}
+                                activeOpacity={0.7}
+                                style={[styles.modeChip, selected && styles.modeChipActive]}>
+                                <AppText
+                                  variant="caption"
+                                  style={[
+                                    styles.modeChipText,
+                                    selected && styles.modeChipTextActive,
+                                  ]}>
+                                  {mode}
+                                </AppText>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    </>
                   ) : null}
 
                   {/* Date (defaults to today, selectable) */}
@@ -477,6 +550,35 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     height: 50,
     borderRadius: radius.md,
+  },
+  modeLabel: {
+    marginBottom: spacing.xs,
+    fontWeight: '600',
+  },
+  modeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  modeChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  modeChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  modeChipText: {
+    color: colors.text,
+    fontWeight: '500',
+  },
+  modeChipTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   photoPickerOverlay: {
     flex: 1,

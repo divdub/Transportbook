@@ -62,7 +62,7 @@ export default function TripProgressScreen() {
       case 'POD Received':
         return {label: 'Mark POD Submitted', nextStatus: 'POD Submitted'};
       case 'POD Submitted':
-        return {label: 'Mark Settled', nextStatus: 'Settled'};
+        return {label: 'Settle Party', nextStatus: 'Settled'};
       case 'Settled':
       default:
         return {label: 'Trip Fully Settled', nextStatus: null};
@@ -74,10 +74,14 @@ export default function TripProgressScreen() {
   const handleAdvanceStatus = async () => {
     if (!nextAction.nextStatus) return;
     const next = nextAction.nextStatus;
-    // Completed / POD Received / POD Submitted collect extra data (end km,
-    // dates, optional POD photo) before calling the backend. Settled simply
-    // advances the lifecycle.
-    if (next === 'Completed' || next === 'POD Received' || next === 'POD Submitted') {
+    // Status advances that need extra input (end km, dates, POD photo,
+    // settlement amount/mode) open the sheet before calling the backend.
+    const needsInput =
+      next === 'Completed' ||
+      next === 'POD Received' ||
+      next === 'POD Submitted' ||
+      next === 'Settled';
+    if (needsInput) {
       setStatusSheet({visible: true, nextStatus: next});
       return;
     }

@@ -4,7 +4,6 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {NavigationContainer} from '@react-navigation/native';
 import TripDetailsScreen from '../src/features/trips/screens/TripDetailsScreen';
 import TripProgressScreen from '../src/features/trips/screens/TripProgressScreen';
-import AddLoadScreen from '../src/features/trips/screens/AddLoadScreen';
 import {AddAdvanceSheet} from '../src/features/trips/sheets/AddAdvanceSheet';
 import {AddChargeSheet} from '../src/features/trips/sheets/AddChargeSheet';
 import {AddDriverBalanceSheet} from '../src/features/trips/sheets/AddDriverBalanceSheet';
@@ -57,6 +56,16 @@ jest.mock('../src/features/trips/hooks/useTripDetailsQuery', () => ({
     isLoading: false,
     isError: false,
     refetch: jest.fn(),
+  }),
+}));
+
+jest.mock('../src/features/trips/hooks/useTripsQuery', () => ({
+  useTripsQuery: () => ({
+    data: [],
+    isLoading: false,
+    isError: false,
+    refetch: jest.fn(),
+    isRefetching: false,
   }),
 }));
 
@@ -142,18 +151,6 @@ describe('Trips Module - Phase 4-9 (Trip Details, Progress, Load & Sheets)', () 
       tree = ReactTestRenderer.create(
         <Wrapper>
           <TripProgressScreen />
-        </Wrapper>,
-      );
-    });
-    expect(tree).toBeDefined();
-  });
-
-  it('renders AddLoadScreen cleanly', () => {
-    let tree;
-    ReactTestRenderer.act(() => {
-      tree = ReactTestRenderer.create(
-        <Wrapper>
-          <AddLoadScreen />
         </Wrapper>,
       );
     });

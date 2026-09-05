@@ -22,6 +22,7 @@ export function mapTripFromBackend(item) {
     driverId: item.driverid == null ? null : String(item.driverid),
     supplierId: item.supplierid == null ? null : String(item.supplierid),
     partyName: item.partyname || item.partyName || '',
+    referenceNo: item.referenceno || item.referenceNo || null,
     truckNumber: item.trucknumber || item.truckNumber || 'Commercial Truck',
     driverName: item.drivername || item.driverName || 'Driver',
     originId: item.originid == null ? null : String(item.originid),
@@ -197,6 +198,12 @@ export const tripsApi = {
       sup_freightamt: Number(data.truckHireCost) || Number(data.supplierBillingAmount) || 0,
       material: data.material || '',
       remark: data.note || data.notes || '',
+      // Only follow-up loads created via "Add Load to this Trip" carry the
+      // parent trip's reference number (TripController::store reuses a passed
+      // referenceno instead of generating a fresh one). A standalone new trip
+      // must not send the field at all — omit the key so the backend generates
+      // its own reference.
+      ...(data.referenceNo ? {referenceno: data.referenceNo} : {}),
     };
     try {
       const response = await apiClient.post('/trips', body);
@@ -244,6 +251,13 @@ export const tripsApi = {
     }
     if (data.status === 'POD Submitted') {
       body.podsubmitdate = toIsoDate(data.date);
+    }
+    if (data.status === 'Settled') {
+      // Settling records a Trippayment on the backend (see TripController
+      // updateStatus settled branch); amount is required, mode/date optional.
+      body.amount = data.amount != null && data.amount !== '' ? Number(data.amount) : null;
+      body.paymentmode = data.paymentMode || 'Cash';
+      body.paymentdate = toIsoDate(data.date);
     }
     try {
       const response = await apiClient.patch(`/trips/${id}/status`, body);

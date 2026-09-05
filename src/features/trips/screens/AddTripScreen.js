@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import {Controller, useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -109,6 +109,7 @@ export function resolveSupplierForTruck(truck, suppliers) {
 
 export default function AddTripScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const {mutateAsync: createTrip, isPending} = useAddTripMutation();
   const {mutateAsync: createParty} = useAddPartyMutation();
   const {mutateAsync: createTruck} = useAddTruckMutation();
@@ -135,6 +136,55 @@ export default function AddTripScreen() {
   const [quickAddType, setQuickAddType] = useState('party'); // 'party' | 'truck' | 'driver'
 
   const [sendSmsToParty, setSendSmsToParty] = useState(false);
+
+  // "Add Load to this Trip": opened from a Trip Details screen for an own-truck
+  // trip. The same truck + driver stay selected, the origin becomes the parent
+  // trip's destination, and the new trip inherits the parent's referenceno so
+  // backend groups both as loads of the same reference.
+  const loadParams = useMemo(
+    () =>
+      route.params?.truckId || route.params?.referenceNo || route.params?.parentTripNo
+        ? {
+            referenceNo: route.params.referenceNo || null,
+            truckId: route.params.truckId,
+            truckNumber: route.params.truckNumber,
+            driverId: route.params.driverId,
+            driverName: route.params.driverName,
+            originId: route.params.originId,
+            originName: route.params.originName,
+            parentTripNo: route.params.parentTripNo || null,
+          }
+        : null,
+    [
+      route.params?.truckId,
+      route.params?.referenceNo,
+      route.params?.parentTripNo,
+      route.params?.truckNumber,
+      route.params?.driverId,
+      route.params?.driverName,
+      route.params?.originId,
+      route.params?.originName,
+    ],
+  );
+
+  useEffect(() => {
+    if (loadParams?.truckId) {
+      setValue('truckId', String(loadParams.truckId));
+      setValue('truckNumber', loadParams.truckNumber || '');
+      setValue('ownership', 'own');
+    }
+    if (loadParams?.driverId) {
+      setValue('driverId', String(loadParams.driverId));
+      setValue('driverName', loadParams.driverName || '');
+    }
+    if (loadParams?.originId) {
+      setValue('originId', Number(loadParams.originId));
+      setValue('origin', loadParams.originName || '');
+    }
+    // Prefill once on mount — the same truck must not change if the user's own
+    // edits elsewhere overwrite these values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Form setup
   const {
@@ -179,6 +229,39 @@ export default function AddTripScreen() {
   });
 
   const formValues = watch();
+
+  // Add Load: the truck/driver name read from the parent trip may be a generic
+  // placeholder (backend trip rows carry only the numeric FK). Resolve the real
+  // name from the live reference lists by ID so the prefilled values always
+  // come from the actual previous trip.
+  const resolvedLoadTruck = useMemo(
+    () =>
+      loadParams?.truckId
+        ? (apiTrucks || []).find(t => String(t.id) === String(loadParams.truckId)) || null
+        : null,
+    [apiTrucks, loadParams],
+  );
+  const resolvedLoadDriver = useMemo(
+    () =>
+      loadParams?.driverId
+        ? (apiDrivers || []).find(d => String(d.id) === String(loadParams.driverId)) || null
+        : null,
+    [apiDrivers, loadParams],
+  );
+
+  useEffect(() => {
+    if (resolvedLoadTruck) {
+      setValue('truckNumber', resolvedLoadTruck.vehicleNumber);
+      setValue('truckId', String(resolvedLoadTruck.id));
+    }
+  }, [resolvedLoadTruck, setValue]);
+
+  useEffect(() => {
+    if (resolvedLoadDriver) {
+      setValue('driverName', resolvedLoadDriver.drivername);
+      setValue('driverId', String(resolvedLoadDriver.id));
+    }
+  }, [resolvedLoadDriver, setValue]);
 
   // Next trip number = latest created tripno + 1 (backend generates these).
   const nextTripNo = useMemo(() => computeNextTripNo(tripsList), [tripsList]);
@@ -279,7 +362,10 @@ export default function AddTripScreen() {
 
   // Form Handlers
   const onSubmit = async values => {
-    const created = await createTrip(values);
+    const created = await createTrip({
+      ...values,
+      referenceNo: loadParams?.referenceNo || null,
+    });
     if (created && created.id) {
       navigation.replace(routes.tripDetails, {tripId: created.id});
     } else {
@@ -506,7 +592,7 @@ export default function AddTripScreen() {
           </TouchableOpacity>
 
           <AppText variant="heading" style={styles.headerTitle}>
-            Add Trip
+            {loadParams ? 'Add Load' : 'Add Trip'}
           </AppText>
 
           <TouchableOpacity

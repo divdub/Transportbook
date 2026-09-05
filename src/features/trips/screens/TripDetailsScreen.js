@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import {AddExpenseSheet} from '../sheets/AddExpenseSheet';
 import {AddPaymentSheet} from '../sheets/AddPaymentSheet';
 import {TripStatusSheet} from '../sheets/TripStatusSheet';
 import {useTripDetailsQuery} from '../hooks/useTripDetailsQuery';
+import {useTripsQuery} from '../hooks/useTripsQuery';
 import {useUpdateTripStatusMutation} from '../hooks/useUpdateTripStatusMutation';
 import {useAddAdvanceMutation} from '../hooks/useAddAdvanceMutation';
 import {useAddChargeMutation} from '../hooks/useAddChargeMutation';
@@ -34,7 +35,7 @@ import {useCitiesQuery} from '../../cities/hooks/useCitiesQuery';
 import {routes} from '../../../navigation/routeNames';
 import {colors, radius, spacing} from '../../../theme';
 
-const TABS = ['Party', 'Profit', 'Driver', 'More'];
+const STATIC_TABS = ['Profit', 'Driver', 'More'];
 
 export default function TripDetailsScreen() {
   const navigation = useNavigation();
@@ -48,8 +49,10 @@ export default function TripDetailsScreen() {
   const [paymentSheetVisible, setPaymentSheetVisible] = useState(false);
   const [expenseSheetVisible, setExpenseSheetVisible] = useState(false);
   const [statusSheet, setStatusSheet] = useState({visible: false, nextStatus: null});
+  const [expandedLoadId, setExpandedLoadId] = useState(null);
 
   const {data: trip, isLoading, isError, refetch} = useTripDetailsQuery(tripId || 'TRIP-1001');
+  const {data: allTrips = []} = useTripsQuery();
   const {data: parties = []} = usePartiesQuery();
   const {data: trucks = []} = useTrucksQuery();
   const {data: suppliers = []} = useSuppliersQuery();
@@ -86,12 +89,12 @@ export default function TripDetailsScreen() {
         (trip.partyId && partyById.get(trip.partyId)) ||
         'No Party',
       truckNumber:
-        trip.truckNumber ||
         (trip.truckId && truckById.get(trip.truckId)) ||
+        (trip.truckNumber && trip.truckNumber !== 'Commercial Truck' ? trip.truckNumber : '') ||
         'Unassigned',
       driverName:
-        trip.driverName ||
         (trip.driverId && driverById.get(trip.driverId)) ||
+        (trip.driverName && trip.driverName !== 'Driver' ? trip.driverName : '') ||
         'Unassigned',
       supplierName:
         (trip.supplierId && supplierById.get(String(trip.supplierId))) ||
@@ -101,6 +104,32 @@ export default function TripDetailsScreen() {
         trip.destination || (trip.destinationId && cityById.get(trip.destinationId)) || 'Destination',
     };
   }, [trip, parties, trucks, drivers, cities, suppliers]);
+
+  // A follow-up load inherits its parent's referenceno, so all trips sharing
+  // one reference are "loads" of the same trip. When more than one exists the
+  // first tab becomes "Loads".
+  const loads = useMemo(() => {
+    if (!displayTrip) return [];
+    if (!displayTrip.referenceNo) return [displayTrip];
+    const grouped = allTrips.filter(t => t.referenceNo === displayTrip.referenceNo);
+    if (grouped.length === 0) return [displayTrip];
+    return [...grouped].sort((a, b) => new Date(b.tripDate) - new Date(a.tripDate) || b.id.localeCompare(a.id));
+  }, [displayTrip, allTrips]);
+  const hasMultipleLoads = loads.length > 1;
+  const tabs = useMemo(
+    () => [...(hasMultipleLoads ? ['Loads'] : ['Party']), ...STATIC_TABS],
+    [hasMultipleLoads],
+  );
+
+  // Keep the selected tab valid when the tab label flips between Party and
+  // Loads based on how many trips share this reference.
+  useEffect(() => {
+    if (activeTab === 'Party' && !tabs.includes('Party')) {
+      setActiveTab('Loads');
+    } else if (activeTab === 'Loads' && !tabs.includes('Loads')) {
+      setActiveTab('Party');
+    }
+  }, [tabs, activeTab]);
 
   // Unified line items for the Party tab's Charges field: every charge entry plus
   // every expense flagged "Add to Party Bill". Displayed as date · type · amount.
@@ -155,10 +184,14 @@ export default function TripDetailsScreen() {
       return;
     }
     const next = sequence[currentIdx + 1];
-    // Completed / POD Received / POD Submitted collect extra data (end km,
-    // dates, optional POD photo) before calling the backend. Settled simply
-    // advances the lifecycle.
-    if (next === 'Completed' || next === 'POD Received' || next === 'POD Submitted') {
+    // Status advances that need extra input (end km, dates, POD photo,
+    // settlement amount/mode) open the sheet before calling the backend.
+    const needsInput =
+      next === 'Completed' ||
+      next === 'POD Received' ||
+      next === 'POD Submitted' ||
+      next === 'Settled';
+    if (needsInput) {
       setStatusSheet({visible: true, nextStatus: next});
       return;
     }
@@ -281,7 +314,7 @@ export default function TripDetailsScreen() {
 
       {/* Tabs Header */}
       <View style={styles.tabsContainer}>
-        {TABS.map(tab => {
+        {tabs.map(tab => {
           const isSelected = activeTab === tab;
           return (
             <TouchableOpacity
@@ -305,8 +338,15 @@ export default function TripDetailsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>
         
-        {/* ================= PARTY TAB ================= */}
-        {activeTab === 'Party' && (
+        {/* ================= PARTY / LOADS TAB ================= */}
+        {activeTab === 'Loads' ? (
+          <LoadsPane
+            loads={loads}
+            currentTripId={displayTrip.id}
+            expandedId={expandedLoadId}
+            onToggle={setExpandedLoadId}
+          />
+        ) : activeTab === 'Party' && (
           <View style={styles.tabPane}>
             
             {/* Customer & Route Card */}
@@ -383,7 +423,7 @@ export default function TripDetailsScreen() {
                       : displayTrip.status === 'POD Received'
                       ? 'Submit POD'
                       : displayTrip.status === 'POD Submitted'
-                      ? 'Mark Settled'
+                      ? 'Settle Party'
                       : 'Trip Settled'}
                   </AppText>
                 </TouchableOpacity>
@@ -532,10 +572,23 @@ export default function TripDetailsScreen() {
               </View>
             </View>
 
-            {/* Add Load to this Trip Card */}
+            {/* Add Load to this Trip Card — opens the shared Add Trip form prefilled
+            from this trip: same truck + driver, origin = this trip's
+            destination, and the same referenceno so both group as loads. */}
             <TouchableOpacity
               style={styles.addLoadCard}
-              onPress={() => navigation.navigate(routes.addLoad, {parentTrip: trip})}
+              onPress={() =>
+                navigation.navigate(routes.addTrip, {
+                  truckId: displayTrip.truckId,
+                  truckNumber: displayTrip.truckNumber,
+                  driverId: displayTrip.driverId,
+                  driverName: displayTrip.driverName,
+                  originId: displayTrip.destinationId,
+                  originName: displayTrip.destination,
+                  referenceNo: displayTrip.referenceNo || null,
+                  parentTripNo: displayTrip.tripno || displayTrip.id,
+                })
+              }
               activeOpacity={0.7}>
               <AppText variant="label" style={styles.addLoadText}>
                 Add load to this Trip
@@ -861,6 +914,127 @@ export default function TripDetailsScreen() {
         isPending={isUpdatingStatus}
       />
     </AppScreen>
+  );
+}
+
+/**
+ * Loads tab — lists every trip sharing the same reference number as the
+ * current trip. "View Full Details" expands the extra info inline; it never
+ * navigates away from the reference.
+ */
+function LoadsPane({loads, currentTripId, expandedId, onToggle}) {
+  return (
+    <View style={styles.tabPane}>
+      <View style={styles.card}>
+        <View style={styles.loadsIntro}>
+          <Icon name="archive-outline" size={20} color={colors.primary} />
+          <AppText variant="body" style={styles.loadsIntroText}>
+            {loads.length} load{loads.length === 1 ? '' : 's'} on this trip reference
+          </AppText>
+        </View>
+
+        {loads.map(load => {
+          const isCurrent = load.id === currentTripId;
+          const isExpanded = expandedId === load.id;
+          return (
+            <View key={load.id} style={styles.loadCard}>
+              <View style={styles.loadHeader}>
+                <View style={styles.loadHeaderInfo}>
+                  <AppText variant="body" style={styles.loadTruckNumber}>
+                    {load.truckNumber}
+                    {isCurrent ? <AppText variant="caption" style={styles.currentBadge}>  · This Trip</AppText> : null}
+                  </AppText>
+                  <AppText variant="caption" color="textMuted">
+                    {load.tripno || load.id} · {load.tripDate}
+                  </AppText>
+                </View>
+                <View style={styles.loadStatusPill}>
+                  <AppText variant="caption" style={styles.loadStatusText}>
+                    {load.status}
+                  </AppText>
+                </View>
+              </View>
+
+              <View style={styles.loadRouteRow}>
+                <AppText variant="body" style={styles.loadRouteText}>
+                  {load.origin} → {load.destination}
+                </AppText>
+                <AppText variant="label" style={styles.loadAmount}>
+                  ₹{(load.freightAmount || 0).toLocaleString('en-IN')}
+                </AppText>
+              </View>
+
+              <TouchableOpacity
+                style={styles.loadToggleBtn}
+                onPress={() => onToggle(isExpanded ? null : load.id)}
+                activeOpacity={0.7}>
+                <AppText variant="label" style={styles.loadToggleText}>
+                  View Full Details
+                </AppText>
+                <Icon
+                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+
+              {isExpanded ? (
+                <View style={styles.loadDetails}>
+                  <Detail label="Party" value={load.partyName} />
+                  <Detail label="Driver" value={load.driverName} />
+                  <Detail label="Material" value={load.material || '—'} />
+                  <Detail
+                    label="Billing"
+                    value={
+                      load.billingType
+                        ? `${load.billingType} · ₹${load.freightAmount || 0}/${
+                            load.billingType === 'Fixed' ? 'trip' : `${load.supplierBillingQuantity || ''} qty`
+                          }`
+                        : '—'
+                    }
+                  />
+                  <Detail label="Freight" value={`₹${(load.freightAmount || 0).toLocaleString('en-IN')}`} />
+                  <Detail label="Advance" value={`₹${(load.advanceAmount || 0).toLocaleString('en-IN')}`} />
+                  <Detail label="Charges" value={`₹${(load.chargesAmount || 0).toLocaleString('en-IN')}`} />
+                  <Detail label="Payments" value={`₹${(load.paymentsAmount || 0).toLocaleString('en-IN')}`} />
+                  <Detail
+                    label="Balance"
+                    value={`₹${(load.pendingBalance || 0).toLocaleString('en-IN')}`}
+                    strong
+                  />
+                  <Detail
+                    label="Start / End KM"
+                    value={`${load.startKm || '—'} / ${load.endKm || '—'}`}
+                  />
+                  <Detail label="End Date" value={load.endDate || '—'} />
+                  <Detail label="POD Received" value={load.podReceivedDate || '—'} />
+                  <Detail label="POD Submitted" value={load.podSubmittedDate || '—'} />
+                  <View style={styles.loadNotes}>
+                    <AppText variant="caption" color="textMuted">
+                      Notes
+                    </AppText>
+                    <AppText variant="body">{load.notes || '—'}</AppText>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function Detail({label, value, strong}) {
+  return (
+    <View style={styles.detailRow}>
+      <AppText variant="caption" color="textMuted" style={styles.detailLabel}>
+        {label}
+      </AppText>
+      <AppText variant="body" style={[styles.detailValue, strong && styles.detailValueStrong]}>
+        {value}
+      </AppText>
+    </View>
   );
 }
 
@@ -1323,5 +1497,110 @@ const styles = StyleSheet.create({
   },
   notesText: {
     fontSize: 13,
+  },
+  loadsIntro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceSubtle,
+  },
+  loadsIntroText: {
+    fontSize: 14,
+  },
+  loadCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  loadHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  loadHeaderInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  loadTruckNumber: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  currentBadge: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  loadStatusPill: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  loadStatusText: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  loadRouteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  loadRouteText: {
+    flex: 1,
+    fontSize: 14,
+  },
+  loadAmount: {
+    color: colors.text,
+    fontWeight: '600',
+  },
+  loadToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+  },
+  loadToggleText: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  loadDetails: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.surfaceSubtle,
+    gap: spacing.xs,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  detailLabel: {
+    flex: 1,
+  },
+  detailValue: {
+    flex: 2,
+    textAlign: 'right',
+    fontSize: 13,
+  },
+  detailValueStrong: {
+    fontWeight: '700',
+  },
+  loadNotes: {
+    marginTop: spacing.xs,
+    gap: 4,
+    backgroundColor: colors.surfaceSubtle,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
   },
 });
