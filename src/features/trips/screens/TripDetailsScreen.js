@@ -50,6 +50,7 @@ export default function TripDetailsScreen() {
   const [expenseSheetVisible, setExpenseSheetVisible] = useState(false);
   const [statusSheet, setStatusSheet] = useState({visible: false, nextStatus: null});
   const [expandedLoadId, setExpandedLoadId] = useState(null);
+  const [targetTrip, setTargetTrip] = useState(null);
 
   const {data: trip, isLoading, isError, refetch} = useTripDetailsQuery(tripId || 'TRIP-1001');
   const {data: allTrips = []} = useTripsQuery();
@@ -115,11 +116,62 @@ export default function TripDetailsScreen() {
     if (grouped.length === 0) return [displayTrip];
     return [...grouped].sort((a, b) => new Date(b.tripDate) - new Date(a.tripDate) || b.id.localeCompare(a.id));
   }, [displayTrip, allTrips]);
+
+  const displayLoads = useMemo(() => {
+    if (!loads || loads.length === 0) return [];
+    const partyById = new Map(parties.map(p => [String(p.id), p.name]));
+    const truckById = new Map(trucks.map(t => [String(t.id), t.vehicleNumber]));
+    const driverById = new Map(drivers.map(d => [String(d.id), d.drivername]));
+    const cityById = new Map(cities.map(c => [String(c.id), c.name]));
+    const supplierById = new Map(
+      suppliers.map(s => [String(s.id), s.suppliername || s.name || '']),
+    );
+    return loads.map(l => {
+      const truck = trucks.find(trk => String(trk.id) === String(l.truckId));
+      const truckSupplierName = truck?.supplierName || truck?.ownerName || '';
+      return {
+        ...l,
+        partyName:
+          l.partyName ||
+          (l.partyId && partyById.get(String(l.partyId))) ||
+          'No Party',
+        truckNumber:
+          (l.truckId && truckById.get(String(l.truckId))) ||
+          (l.truckNumber && l.truckNumber !== 'Commercial Truck' ? l.truckNumber : '') ||
+          'Unassigned',
+        driverName:
+          (l.driverId && driverById.get(String(l.driverId))) ||
+          (l.driverName && l.driverName !== 'Driver' ? l.driverName : '') ||
+          'Unassigned',
+        supplierName:
+          (l.supplierId && supplierById.get(String(l.supplierId))) ||
+          (truckSupplierName && truckSupplierName !== 'Vehicle Owner' ? truckSupplierName : ''),
+        origin: l.origin || (l.originId && cityById.get(String(l.originId))) || 'Origin',
+        destination:
+          l.destination || (l.destinationId && cityById.get(String(l.destinationId))) || 'Destination',
+        freightAmount: Number(l.freightAmount) || 0,
+        advanceAmount: Number(l.advanceAmount) || 0,
+        chargesAmount: Number(l.chargesAmount) || 0,
+        paymentsAmount: Number(l.paymentsAmount) || 0,
+        pendingBalance:
+          l.pendingBalance !== undefined
+            ? Number(l.pendingBalance)
+            : Number(l.freightAmount || 0) -
+              Number(l.advanceAmount || 0) +
+              Number(l.chargesAmount || 0) -
+              Number(l.paymentsAmount || 0),
+      };
+    });
+  }, [loads, parties, trucks, drivers, cities, suppliers]);
+
   const hasMultipleLoads = loads.length > 1;
   const tabs = useMemo(
     () => [...(hasMultipleLoads ? ['Loads'] : ['Party']), ...STATIC_TABS],
     [hasMultipleLoads],
   );
+
+  // Active context for modal sheets (target load or current trip)
+  const activeLoadContext = targetTrip || displayTrip;
 
   // Keep the selected tab valid when the tab label flips between Party and
   // Loads based on how many trips share this reference.
@@ -177,9 +229,11 @@ export default function TripDetailsScreen() {
     );
   }
 
-  const handleNextStatus = async () => {
+  const handleNextStatus = async (targetLoad = null) => {
+    const active = targetLoad || displayTrip;
+    setTargetTrip(active);
     const sequence = ['Started', 'Completed', 'POD Received', 'POD Submitted', 'Settled'];
-    const currentIdx = sequence.indexOf(displayTrip.status);
+    const currentIdx = sequence.indexOf(active.status);
     if (currentIdx >= sequence.length - 1) {
       return;
     }
@@ -195,13 +249,15 @@ export default function TripDetailsScreen() {
       setStatusSheet({visible: true, nextStatus: next});
       return;
     }
-    await handleStatusConfirm({status: next, date: null, endKm: '', photoBase64: null});
+    await handleStatusConfirm({status: next, date: null, endKm: '', photoBase64: null}, active);
   };
 
-  const handleStatusConfirm = async payload => {
+  const handleStatusConfirm = async (payload, targetLoad = null) => {
+    const active = targetLoad || targetTrip || displayTrip;
     setStatusSheet(prev => ({...prev, visible: false}));
     try {
-      await updateStatus({id: displayTrip.id, ...payload});
+      await updateStatus({id: active.id, ...payload});
+      setTargetTrip(null);
     } catch (error) {
       Alert.alert(
         'Status not updated',
@@ -212,43 +268,53 @@ export default function TripDetailsScreen() {
 
   const handleSaveAdvance = async data => {
     // Include the trip + party/supplier context the AdvanceEntryController expects.
+    const active = activeLoadContext;
     const isSupplier = data.advancetype === 'supplier';
     await addAdvance({
-      id: displayTrip.id,
+      id: active.id,
       ...data,
-      partyId: isSupplier ? null : displayTrip.partyId,
-      supplierId: isSupplier ? displayTrip.supplierId : null,
-      driverId: displayTrip.driverId,
+      partyId: isSupplier ? null : active.partyId,
+      supplierId: isSupplier ? active.supplierId : null,
+      driverId: active.driverId,
     });
     setAdvanceSheetVisible(false);
+    setTargetTrip(null);
   };
 
   const handleSaveCharge = async data => {
     // Pass the charge entry through to the ChargeEntryController. The sheet
     // resolves cid (charge type id) and chargetype ('party'/'supplier').
+    const active = activeLoadContext;
     await addCharge({
-      id: displayTrip.id,
+      id: active.id,
       ...data,
     });
     setChargeSheetVisible(false);
+    setTargetTrip(null);
   };
 
   const handleSaveDriverBalance = async data => {
-    await addDriverBalance({id: displayTrip.id, ...data});
+    const active = activeLoadContext;
+    await addDriverBalance({id: active.id, ...data});
     setDriverBalanceVisible(false);
+    setTargetTrip(null);
   };
 
   const handleSavePayment = async data => {
-    await addPayment({tripId: displayTrip.id, payload: data});
+    const active = activeLoadContext;
+    await addPayment({tripId: active.id, payload: data});
     setPaymentSheetVisible(false);
+    setTargetTrip(null);
   };
 
   const handleSaveExpense = async data => {
+    const active = activeLoadContext;
     await addExpense({
-      id: displayTrip.id,
+      id: active.id,
       ...data,
     });
     setExpenseSheetVisible(false);
+    setTargetTrip(null);
   };
 
   // Calculations for Profit Tab
@@ -341,10 +407,39 @@ export default function TripDetailsScreen() {
         {/* ================= PARTY / LOADS TAB ================= */}
         {activeTab === 'Loads' ? (
           <LoadsPane
-            loads={loads}
+            loads={displayLoads}
             currentTripId={displayTrip.id}
             expandedId={expandedLoadId}
             onToggle={setExpandedLoadId}
+            onNextStatus={handleNextStatus}
+            isUpdatingStatus={isUpdatingStatus}
+            onAddAdvance={load => {
+              setTargetTrip(load);
+              setAdvanceSheetVisible(true);
+            }}
+            onAddCharge={load => {
+              setTargetTrip(load);
+              setChargeSheetVisible(true);
+            }}
+            onAddPayment={load => {
+              setTargetTrip(load);
+              setPaymentSheetVisible(true);
+            }}
+            onNavigateProgress={id =>
+              navigation.navigate(routes.tripProgress, {tripId: id})
+            }
+            onNavigateAddTrip={() =>
+              navigation.navigate(routes.addTrip, {
+                truckId: displayTrip.truckId,
+                truckNumber: displayTrip.truckNumber,
+                driverId: displayTrip.driverId,
+                driverName: displayTrip.driverName,
+                originId: displayTrip.destinationId,
+                originName: displayTrip.destination,
+                referenceNo: displayTrip.referenceNo || null,
+                parentTripNo: displayTrip.tripno || displayTrip.id,
+              })
+            }
           />
         ) : activeTab === 'Party' && (
           <View style={styles.tabPane}>
@@ -919,121 +1014,337 @@ export default function TripDetailsScreen() {
 
 /**
  * Loads tab — lists every trip sharing the same reference number as the
- * current trip. "View Full Details" expands the extra info inline; it never
- * navigates away from the reference.
+ * current trip. Each load uses the Party tab style UI (collapsible/expandable)
+ * matching the user design specs.
  */
-function LoadsPane({loads, currentTripId, expandedId, onToggle}) {
+function LoadsPane({
+  loads,
+  currentTripId,
+  expandedId,
+  onToggle,
+  onNextStatus,
+  isUpdatingStatus,
+  onAddAdvance,
+  onAddCharge,
+  onAddPayment,
+  onNavigateProgress,
+  onNavigateAddTrip,
+}) {
   return (
     <View style={styles.tabPane}>
-      <View style={styles.card}>
-        <View style={styles.loadsIntro}>
-          <Icon name="archive-outline" size={20} color={colors.primary} />
-          <AppText variant="body" style={styles.loadsIntroText}>
-            {loads.length} load{loads.length === 1 ? '' : 's'} on this trip reference
-          </AppText>
-        </View>
+      {loads.map(load => (
+        <LoadCard
+          key={load.id}
+          load={load}
+          isCurrent={load.id === currentTripId}
+          isExpanded={expandedId === load.id}
+          onToggle={onToggle}
+          onNextStatus={onNextStatus}
+          isUpdatingStatus={isUpdatingStatus}
+          onAddAdvance={onAddAdvance}
+          onAddCharge={onAddCharge}
+          onAddPayment={onAddPayment}
+          onNavigateProgress={onNavigateProgress}
+        />
+      ))}
 
-        {loads.map(load => {
-          const isCurrent = load.id === currentTripId;
-          const isExpanded = expandedId === load.id;
-          return (
-            <View key={load.id} style={styles.loadCard}>
-              <View style={styles.loadHeader}>
-                <View style={styles.loadHeaderInfo}>
-                  <AppText variant="body" style={styles.loadTruckNumber}>
-                    {load.truckNumber}
-                    {isCurrent ? <AppText variant="caption" style={styles.currentBadge}>  · This Trip</AppText> : null}
-                  </AppText>
-                  <AppText variant="caption" color="textMuted">
-                    {load.tripno || load.id} · {load.tripDate}
-                  </AppText>
-                </View>
-                <View style={styles.loadStatusPill}>
-                  <AppText variant="caption" style={styles.loadStatusText}>
-                    {load.status}
-                  </AppText>
-                </View>
-              </View>
-
-              <View style={styles.loadRouteRow}>
-                <AppText variant="body" style={styles.loadRouteText}>
-                  {load.origin} → {load.destination}
-                </AppText>
-                <AppText variant="label" style={styles.loadAmount}>
-                  ₹{(load.freightAmount || 0).toLocaleString('en-IN')}
-                </AppText>
-              </View>
-
-              <TouchableOpacity
-                style={styles.loadToggleBtn}
-                onPress={() => onToggle(isExpanded ? null : load.id)}
-                activeOpacity={0.7}>
-                <AppText variant="label" style={styles.loadToggleText}>
-                  View Full Details
-                </AppText>
-                <Icon
-                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={18}
-                  color={colors.primary}
-                />
-              </TouchableOpacity>
-
-              {isExpanded ? (
-                <View style={styles.loadDetails}>
-                  <Detail label="Party" value={load.partyName} />
-                  <Detail label="Driver" value={load.driverName} />
-                  <Detail label="Material" value={load.material || '—'} />
-                  <Detail
-                    label="Billing"
-                    value={
-                      load.billingType
-                        ? `${load.billingType} · ₹${load.freightAmount || 0}/${
-                            load.billingType === 'Fixed' ? 'trip' : `${load.supplierBillingQuantity || ''} qty`
-                          }`
-                        : '—'
-                    }
-                  />
-                  <Detail label="Freight" value={`₹${(load.freightAmount || 0).toLocaleString('en-IN')}`} />
-                  <Detail label="Advance" value={`₹${(load.advanceAmount || 0).toLocaleString('en-IN')}`} />
-                  <Detail label="Charges" value={`₹${(load.chargesAmount || 0).toLocaleString('en-IN')}`} />
-                  <Detail label="Payments" value={`₹${(load.paymentsAmount || 0).toLocaleString('en-IN')}`} />
-                  <Detail
-                    label="Balance"
-                    value={`₹${(load.pendingBalance || 0).toLocaleString('en-IN')}`}
-                    strong
-                  />
-                  <Detail
-                    label="Start / End KM"
-                    value={`${load.startKm || '—'} / ${load.endKm || '—'}`}
-                  />
-                  <Detail label="End Date" value={load.endDate || '—'} />
-                  <Detail label="POD Received" value={load.podReceivedDate || '—'} />
-                  <Detail label="POD Submitted" value={load.podSubmittedDate || '—'} />
-                  <View style={styles.loadNotes}>
-                    <AppText variant="caption" color="textMuted">
-                      Notes
-                    </AppText>
-                    <AppText variant="body">{load.notes || '—'}</AppText>
-                  </View>
-                </View>
-              ) : null}
-            </View>
-          );
-        })}
-      </View>
+      {/* Add Load to this Trip Card */}
+      <TouchableOpacity
+        style={styles.addLoadCard}
+        onPress={onNavigateAddTrip}
+        activeOpacity={0.7}>
+        <AppText variant="label" style={styles.addLoadText}>
+          Add load to this Trip
+        </AppText>
+        <Icon name="chevron-right" size={20} color={colors.primary} />
+      </TouchableOpacity>
     </View>
   );
 }
 
-function Detail({label, value, strong}) {
+function LoadCard({
+  load,
+  isCurrent,
+  isExpanded,
+  onToggle,
+  onNextStatus,
+  isUpdatingStatus,
+  onAddAdvance,
+  onAddCharge,
+  onAddPayment,
+  onNavigateProgress,
+}) {
+  const canViewBill = ['Completed', 'POD Received', 'POD Submitted', 'Settled'].includes(load.status);
+
+  const billLineItems = useMemo(() => {
+    const chargeItems = (load.charges || []).map(c => ({
+      id: `charge-${c.id || Date.now()}`,
+      date: c.date || '',
+      label: c.chargeType || c.type || 'Charge',
+      amount: Number(c.amount) || 0,
+      reduce: (c.billAdjustment || 'add') === 'reduce',
+    }));
+    const expenseItems = (load.expenses || [])
+      .filter(e => e.addToBill)
+      .map(e => ({
+        id: `expense-${e.id || Date.now()}`,
+        date: e.date || '',
+        label: e.type || 'Expense',
+        amount: Number(e.amount) || 0,
+        reduce: false,
+      }));
+    return [...chargeItems, ...expenseItems];
+  }, [load]);
+
   return (
-    <View style={styles.detailRow}>
-      <AppText variant="caption" color="textMuted" style={styles.detailLabel}>
-        {label}
-      </AppText>
-      <AppText variant="body" style={[styles.detailValue, strong && styles.detailValueStrong]}>
-        {value}
-      </AppText>
+    <View style={styles.card}>
+      {/* Customer Header */}
+      <View style={styles.customerRow}>
+        <View style={styles.customerNameBlock}>
+          <Icon name="account-circle" size={22} color={colors.primary} />
+          <AppText variant="body" style={styles.customerName}>
+            {load.partyName}
+          </AppText>
+          {isCurrent ? (
+            <AppText variant="caption" style={styles.currentBadge}>
+              · Current
+            </AppText>
+          ) : null}
+        </View>
+        <View style={styles.amountPill}>
+          <AppText variant="label" style={styles.amountPillText}>
+            ₹{load.freightAmount.toLocaleString('en-IN')}
+          </AppText>
+        </View>
+      </View>
+
+      {/* Route Display */}
+      <View style={styles.routeSection}>
+        <View style={styles.routeCitiesRow}>
+          <View style={styles.cityBlock}>
+            <AppText variant="body" style={styles.cityName}>
+              {load.origin}
+            </AppText>
+            <AppText variant="caption" color="textMuted">
+              {load.tripDate}
+            </AppText>
+          </View>
+
+          <View style={styles.centerArrowBlock}>
+            <View style={styles.arrowLine} />
+            <View style={styles.arrowCircle}>
+              <Icon name="arrow-right" size={16} color={colors.text} />
+            </View>
+            <View style={styles.arrowLine} />
+          </View>
+
+          <View style={[styles.cityBlock, styles.cityBlockRight]}>
+            <AppText variant="body" style={styles.cityName}>
+              {load.destination}
+            </AppText>
+          </View>
+        </View>
+      </View>
+
+      {/* Expanded Sections */}
+      {isExpanded ? (
+        <>
+          {load.lrNumber ? (
+            <View style={styles.lrNumberCenter}>
+              <AppText variant="body" style={styles.lrNumberCenterText}>
+                #{load.lrNumber}
+              </AppText>
+            </View>
+          ) : null}
+
+          {/* Status Stepper */}
+          <TripStatusStepper
+            currentStatus={load.status}
+            timeline={load.statusTimeline}
+            onPress={() => onNavigateProgress(load.id)}
+          />
+
+          {/* Action Buttons */}
+          <View style={styles.cardActionsRow}>
+            <TouchableOpacity
+              style={styles.completeTripBtn}
+              onPress={() => onNextStatus(load)}
+              disabled={isUpdatingStatus}
+              activeOpacity={0.7}>
+              <AppText variant="label" style={styles.completeTripText}>
+                {isUpdatingStatus
+                  ? 'Updating...'
+                  : load.status === 'Started'
+                  ? 'Complete Trip'
+                  : load.status === 'Completed'
+                  ? 'POD Received'
+                  : load.status === 'POD Received'
+                  ? 'Submit POD'
+                  : load.status === 'POD Submitted'
+                  ? 'Settle Party'
+                  : 'Trip Settled'}
+              </AppText>
+            </TouchableOpacity>
+
+            {canViewBill ? (
+              <TouchableOpacity
+                style={styles.viewBillBtn}
+                onPress={() =>
+                  Alert.alert(
+                    'Trip Bill Summary',
+                    `Freight: ₹${load.freightAmount}\nPending: ₹${load.pendingBalance}\nStatus: ${load.status}`,
+                  )
+                }
+                activeOpacity={0.7}>
+                <AppText variant="label" style={styles.viewBillText}>
+                  View Bill
+                </AppText>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {/* Financial Breakdown Section */}
+          <View style={styles.financialSectionBlock}>
+            <View style={styles.financialRow}>
+              <AppText variant="body" style={styles.financialLabel}>
+                Freight Amount
+              </AppText>
+              <View style={styles.freightEditRow}>
+                <AppText variant="body" style={styles.financialValue}>
+                  ₹{(load.freightAmount || 0).toLocaleString('en-IN')}
+                </AppText>
+                <Icon name="pencil" size={16} color={colors.primary} />
+              </View>
+            </View>
+
+            {/* (-) Advance */}
+            <View style={styles.financialSection}>
+              <View style={styles.financialRow}>
+                <AppText variant="body" color="textMuted">
+                  (-) Advance
+                </AppText>
+                <AppText variant="body" style={styles.financialValue}>
+                  ₹{(load.advanceAmount || 0).toLocaleString('en-IN')}
+                </AppText>
+              </View>
+              <TouchableOpacity
+                onPress={() => onAddAdvance(load)}
+                style={styles.actionLinkBtn}>
+                <AppText variant="label" style={styles.actionLinkText}>
+                  Add Advance
+                </AppText>
+              </TouchableOpacity>
+            </View>
+
+            {/* (+) Charges */}
+            <View style={styles.financialSection}>
+              <View style={styles.financialRow}>
+                <AppText variant="body" color="textMuted">
+                  (+) Charges
+                </AppText>
+                <AppText variant="body" style={styles.financialValue}>
+                  ₹{(load.chargesAmount || 0).toLocaleString('en-IN')}
+                </AppText>
+              </View>
+
+              {billLineItems.length > 0 ? (
+                <View style={styles.chargeItemsList}>
+                  {billLineItems.map(item => (
+                    <View key={item.id} style={styles.chargeItemRow}>
+                      <AppText variant="caption" color="textMuted" style={styles.chargeItemLabel}>
+                        {item.date} · {item.label}
+                      </AppText>
+                      <AppText variant="caption" style={styles.chargeItemAmount}>
+                        {item.reduce ? '−' : ''}₹{item.amount.toLocaleString('en-IN')}
+                      </AppText>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                onPress={() => onAddCharge(load)}
+                style={styles.actionLinkBtn}>
+                <AppText variant="label" style={styles.actionLinkText}>
+                  Add Charges
+                </AppText>
+              </TouchableOpacity>
+            </View>
+
+            {/* (-) Payments */}
+            <View style={styles.financialSection}>
+              <View style={styles.financialRow}>
+                <AppText variant="body" color="textMuted">
+                  (-) Payments
+                </AppText>
+                <AppText variant="body" style={styles.financialValue}>
+                  ₹{(load.paymentsAmount || 0).toLocaleString('en-IN')}
+                </AppText>
+              </View>
+              <TouchableOpacity
+                onPress={() => onAddPayment(load)}
+                style={styles.actionLinkBtn}>
+                <AppText variant="label" style={styles.actionLinkText}>
+                  Add Payment
+                </AppText>
+              </TouchableOpacity>
+            </View>
+
+            {/* Dashed Separator */}
+            <View style={styles.dashedDivider} />
+
+            {/* Pending Balance */}
+            <View style={styles.financialRow}>
+              <AppText variant="heading" style={styles.pendingBalanceLabel}>
+                Pending Balance
+              </AppText>
+              <AppText variant="heading" style={styles.pendingBalanceValue}>
+                ₹{(load.pendingBalance || 0).toLocaleString('en-IN')}
+              </AppText>
+            </View>
+
+            {/* Note & Request Money Action Row */}
+            <View style={styles.bottomFinancialActions}>
+              <TouchableOpacity
+                style={styles.noteBtn}
+                onPress={() => Alert.alert('Trip Notes', load.notes || 'No note added.')}>
+                <Icon name="plus" size={16} color={colors.primary} />
+                <AppText variant="label" style={styles.noteBtnText}>
+                  Note
+                </AppText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.requestMoneyBtn}
+                onPress={() =>
+                  Alert.alert(
+                    'Request Money',
+                    `Payment reminder of ₹${load.pendingBalance} sent to ${load.partyName}.`,
+                  )
+                }>
+                <AppText variant="label" style={styles.requestMoneyText}>
+                  Request Money
+                </AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </>
+      ) : null}
+
+      {/* Center Bottom Toggle Button */}
+      <TouchableOpacity
+        style={styles.toggleDetailsBtn}
+        onPress={() => onToggle(isExpanded ? null : load.id)}
+        activeOpacity={0.7}>
+        <AppText variant="label" style={styles.toggleDetailsText}>
+          {isExpanded ? 'View less' : 'View full details'}
+        </AppText>
+        <Icon
+          name={isExpanded ? 'chevron-up' : 'chevron-right'}
+          size={18}
+          color={colors.primary}
+        />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -1602,5 +1913,34 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSubtle,
     padding: spacing.sm,
     borderRadius: radius.sm,
+  },
+  lrNumberCenter: {
+    alignItems: 'center',
+    marginVertical: spacing.xs,
+  },
+  lrNumberCenterText: {
+    fontWeight: '700',
+    fontSize: 14,
+    color: colors.text,
+  },
+  financialSectionBlock: {
+    gap: spacing.md,
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  toggleDetailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingTop: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  toggleDetailsText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 13,
   },
 });
