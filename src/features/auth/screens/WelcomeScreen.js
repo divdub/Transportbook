@@ -16,12 +16,12 @@ export default function WelcomeScreen({navigation}) {
       <View style={styles.topBar}>
         <View style={styles.brandMark}>
           <AppText variant="heading" style={styles.brandText}>
-            TB
+            VB
           </AppText>
         </View>
         <View style={styles.brandInfo}>
           <AppText variant="heading" style={styles.brandTitle}>
-            TransportBook
+            VahanBook
           </AppText>
           <AppText variant="caption" color="textMuted">
             Fleet & Operations Platform
@@ -51,7 +51,7 @@ export default function WelcomeScreen({navigation}) {
 
       <AppCard style={styles.card}>
         <AppButton
-          title="Continue with Mobile"
+          title="Continue"
           onPress={() => navigation.navigate(routes.authForm)}
         />
       </AppCard>

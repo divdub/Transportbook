@@ -6,7 +6,7 @@ import HomeScreen from '../features/dashboard/screens/HomeScreen';
 import TripsListScreen from '../features/trips/screens/TripsListScreen';
 import AddScreen from '../features/quickActions/screens/AddScreen';
 import KhataScreen from '../features/khata/screens/KhataScreen';
-import MoreScreen from '../features/more/screens/MoreScreen';
+import AccountScreen from '../features/account/screens/AccountScreen';
 import {routes} from './routeNames';
 import {colors, radius, spacing, typography} from '../theme';
 import {quickActionSheetController} from '../features/quickActions/quickActionSheetController';
@@ -39,7 +39,7 @@ export default function MainTabNavigator() {
         }}
       />
       <Tab.Screen name={routes.khata} component={KhataScreen} />
-      <Tab.Screen name={routes.more} component={MoreScreen} />
+      <Tab.Screen name={routes.account} component={AccountScreen} />
     </Tab.Navigator>
   );
 }
@@ -63,8 +63,12 @@ const tabIcons = {
       focused={focused}
     />
   ),
-  [routes.more]: ({focused, color}) => (
-    <TabGlyph iconName="dots-grid" color={color} focused={focused} />
+  [routes.account]: ({focused, color}) => (
+    <TabGlyph
+      iconName={focused ? 'account' : 'account-outline'}
+      color={color}
+      focused={focused}
+    />
   ),
 };
 

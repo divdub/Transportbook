@@ -16,12 +16,15 @@ import {TripStatusStepper} from '../components/TripStatusStepper';
 import {AddAdvanceSheet} from '../sheets/AddAdvanceSheet';
 import {AddChargeSheet} from '../sheets/AddChargeSheet';
 import {AddDriverBalanceSheet} from '../sheets/AddDriverBalanceSheet';
+import {AddExpenseSheet} from '../sheets/AddExpenseSheet';
 import {AddPaymentSheet} from '../sheets/AddPaymentSheet';
+import {TripStatusSheet} from '../sheets/TripStatusSheet';
 import {useTripDetailsQuery} from '../hooks/useTripDetailsQuery';
 import {useUpdateTripStatusMutation} from '../hooks/useUpdateTripStatusMutation';
 import {useAddAdvanceMutation} from '../hooks/useAddAdvanceMutation';
 import {useAddChargeMutation} from '../hooks/useAddChargeMutation';
 import {useAddDriverBalanceMutation} from '../hooks/useAddDriverBalanceMutation';
+import {useAddExpenseMutation} from '../hooks/useAddExpenseMutation';
 import {useAddPaymentMutation} from '../hooks/useAddPaymentMutation';
 import {usePartiesQuery} from '../../parties/hooks/usePartiesQuery';
 import {useTrucksQuery} from '../../trucks/hooks/useTrucksQuery';
@@ -43,6 +46,8 @@ export default function TripDetailsScreen() {
   const [chargeSheetVisible, setChargeSheetVisible] = useState(false);
   const [driverBalanceVisible, setDriverBalanceVisible] = useState(false);
   const [paymentSheetVisible, setPaymentSheetVisible] = useState(false);
+  const [expenseSheetVisible, setExpenseSheetVisible] = useState(false);
+  const [statusSheet, setStatusSheet] = useState({visible: false, nextStatus: null});
 
   const {data: trip, isLoading, isError, refetch} = useTripDetailsQuery(tripId || 'TRIP-1001');
   const {data: parties = []} = usePartiesQuery();
@@ -55,6 +60,7 @@ export default function TripDetailsScreen() {
   const {mutateAsync: addCharge, isPending: isAddingCharge} = useAddChargeMutation();
   const {mutateAsync: addDriverBalance, isPending: isAddingDriverBalance} = useAddDriverBalanceMutation();
   const {mutateAsync: addPayment, isPending: isAddingPayment} = useAddPaymentMutation();
+  const {mutateAsync: addExpense, isPending: isAddingExpense} = useAddExpenseMutation();
 
   // Backend trip rows return integer FKs (partyid/truckid/driverid/originid/
   // destinationid, supplierid) but not display names, so join the shared
@@ -96,6 +102,29 @@ export default function TripDetailsScreen() {
     };
   }, [trip, parties, trucks, drivers, cities, suppliers]);
 
+  // Unified line items for the Party tab's Charges field: every charge entry plus
+  // every expense flagged "Add to Party Bill". Displayed as date · type · amount.
+  const billLineItems = useMemo(() => {
+    if (!trip) return [];
+    const chargeItems = (trip.charges || []).map(c => ({
+      id: `charge-${c.id || Date.now()}`,
+      date: c.date || '',
+      label: c.chargeType || c.type || 'Charge',
+      amount: Number(c.amount) || 0,
+      reduce: (c.billAdjustment || 'add') === 'reduce',
+    }));
+    const expenseItems = (trip.expenses || [])
+      .filter(e => e.addToBill)
+      .map(e => ({
+        id: `expense-${e.id || Date.now()}`,
+        date: e.date || '',
+        label: e.type || 'Expense',
+        amount: Number(e.amount) || 0,
+        reduce: false,
+      }));
+    return [...chargeItems, ...expenseItems];
+  }, [trip]);
+
   if (isLoading) {
     return (
       <AppScreen style={styles.centerContainer}>
@@ -122,9 +151,29 @@ export default function TripDetailsScreen() {
   const handleNextStatus = async () => {
     const sequence = ['Started', 'Completed', 'POD Received', 'POD Submitted', 'Settled'];
     const currentIdx = sequence.indexOf(displayTrip.status);
-    if (currentIdx < sequence.length - 1) {
-      const next = sequence[currentIdx + 1];
-      await updateStatus({id: displayTrip.id, status: next});
+    if (currentIdx >= sequence.length - 1) {
+      return;
+    }
+    const next = sequence[currentIdx + 1];
+    // Completed / POD Received / POD Submitted collect extra data (end km,
+    // dates, optional POD photo) before calling the backend. Settled simply
+    // advances the lifecycle.
+    if (next === 'Completed' || next === 'POD Received' || next === 'POD Submitted') {
+      setStatusSheet({visible: true, nextStatus: next});
+      return;
+    }
+    await handleStatusConfirm({status: next, date: null, endKm: '', photoBase64: null});
+  };
+
+  const handleStatusConfirm = async payload => {
+    setStatusSheet(prev => ({...prev, visible: false}));
+    try {
+      await updateStatus({id: displayTrip.id, ...payload});
+    } catch (error) {
+      Alert.alert(
+        'Status not updated',
+        error?.message || 'Could not update the trip status. Please try again.',
+      );
     }
   };
 
@@ -161,10 +210,23 @@ export default function TripDetailsScreen() {
     setPaymentSheetVisible(false);
   };
 
+  const handleSaveExpense = async data => {
+    await addExpense({
+      id: displayTrip.id,
+      ...data,
+    });
+    setExpenseSheetVisible(false);
+  };
+
   // Calculations for Profit Tab
   const totalRevenue = (displayTrip.freightAmount || 0) + (displayTrip.chargesAmount || 0);
   const totalExpenses = (displayTrip.expenses || []).reduce((acc, exp) => acc + (exp.amount || 0), 0);
   const netProfit = totalRevenue - totalExpenses;
+
+  // A bill is only meaningful once the trip is beyond the Started stage.
+  const canViewBill = ['Completed', 'POD Received', 'POD Submitted', 'Settled'].includes(
+    displayTrip.status,
+  );
 
   return (
     <AppScreen scroll={false} style={styles.screen} contentStyle={styles.screenContent}>
@@ -326,19 +388,21 @@ export default function TripDetailsScreen() {
                   </AppText>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.viewBillBtn}
-                  onPress={() =>
-                    Alert.alert(
-                      'Trip Bill Summary',
-                      `Freight: ₹${displayTrip.freightAmount}\nPending: ₹${displayTrip.pendingBalance}\nStatus: ${displayTrip.status}`,
-                    )
-                  }
-                  activeOpacity={0.7}>
-                  <AppText variant="label" style={styles.viewBillText}>
-                    View Bill
-                  </AppText>
-                </TouchableOpacity>
+                {canViewBill ? (
+                  <TouchableOpacity
+                    style={styles.viewBillBtn}
+                    onPress={() =>
+                      Alert.alert(
+                        'Trip Bill Summary',
+                        `Freight: ₹${displayTrip.freightAmount}\nPending: ₹${displayTrip.pendingBalance}\nStatus: ${displayTrip.status}`,
+                      )
+                    }
+                    activeOpacity={0.7}>
+                    <AppText variant="label" style={styles.viewBillText}>
+                      View Bill
+                    </AppText>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </View>
 
@@ -385,6 +449,22 @@ export default function TripDetailsScreen() {
                     ₹{(displayTrip.chargesAmount || 0).toLocaleString('en-IN')}
                   </AppText>
                 </View>
+
+                {billLineItems.length > 0 ? (
+                  <View style={styles.chargeItemsList}>
+                    {billLineItems.map(item => (
+                      <View key={item.id} style={styles.chargeItemRow}>
+                        <AppText variant="caption" color="textMuted" style={styles.chargeItemLabel}>
+                          {item.date} · {item.label}
+                        </AppText>
+                        <AppText variant="caption" style={styles.chargeItemAmount}>
+                          {item.reduce ? '−' : ''}₹{item.amount.toLocaleString('en-IN')}
+                        </AppText>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+
                 <TouchableOpacity
                   onPress={() => setChargeSheetVisible(true)}
                   style={styles.actionLinkBtn}>
@@ -509,10 +589,17 @@ export default function TripDetailsScreen() {
 
             {/* Expenses Card */}
             <View style={styles.card}>
-              <View style={styles.profitSectionHeader}>
+              <View style={styles.expenseHeaderRow}>
                 <AppText variant="heading" style={styles.expenseTitle}>
                   (-) Expenses
                 </AppText>
+                <TouchableOpacity
+                  onPress={() => setExpenseSheetVisible(true)}
+                  style={styles.actionLinkBtn}>
+                  <AppText variant="label" style={styles.actionLinkText}>
+                    Add Expense
+                  </AppText>
+                </TouchableOpacity>
               </View>
 
               {displayTrip.expenses && displayTrip.expenses.length > 0 ? (
@@ -755,6 +842,23 @@ export default function TripDetailsScreen() {
         isPending={isAddingPayment}
         partyName={displayTrip.partyName}
         partyId={displayTrip.partyId}
+      />
+
+      {/* Add Expense Modal */}
+      <AddExpenseSheet
+        visible={expenseSheetVisible}
+        onSave={handleSaveExpense}
+        onClose={() => setExpenseSheetVisible(false)}
+        isPending={isAddingExpense}
+      />
+
+      {/* Trip Status Advance Modal */}
+      <TripStatusSheet
+        visible={statusSheet.visible}
+        status={statusSheet.nextStatus}
+        onConfirm={handleStatusConfirm}
+        onClose={() => setStatusSheet(prev => ({...prev, visible: false}))}
+        isPending={isUpdatingStatus}
       />
     </AppScreen>
   );
@@ -1004,6 +1108,25 @@ const styles = StyleSheet.create({
   financialSection: {
     gap: 2,
   },
+  chargeItemsList: {
+    gap: 4,
+    paddingVertical: 2,
+  },
+  chargeItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: 4,
+  },
+  chargeItemLabel: {
+    flex: 1,
+    fontSize: 12,
+  },
+  chargeItemAmount: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+  },
   actionLinkBtn: {
     alignSelf: 'flex-start',
   },
@@ -1077,6 +1200,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   profitSectionHeader: {
+    marginBottom: spacing.xs,
+  },
+  expenseHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.xs,
   },
   revenueTitle: {

@@ -8,7 +8,9 @@ import {
   mockAddAdvance,
   mockAddCharge,
   mockAddDriverBalance,
+  mockAddExpense,
 } from './trips.mock';
+import {chargesApi} from './charges.api';
 
 export function mapTripFromBackend(item) {
   if (!item) return null;
@@ -38,18 +40,50 @@ export function mapTripFromBackend(item) {
       Number(item.advanceAmount || 0) -
       Number(item.paymentsAmount || 0),
     material: item.material || '',
-    status: item.tripstatus || item.status || 'Started',
+    status: mapTripStatusFromBackend(item.tripstatus || item.status),
     notes: item.remark || item.notes || '',
-    statusTimeline: item.statusTimeline || [
-      {status: 'Started', date: item.tripdate || 'Today', completed: true, podUrl: null},
-      {status: 'Completed', date: null, completed: false, podUrl: null},
-      {status: 'POD Received', date: null, completed: false, podUrl: null},
-      {status: 'POD Submitted', date: null, completed: false, podUrl: null},
-      {status: 'Settled', date: null, completed: false, podUrl: null},
-    ],
+    endKm: item.endkm ?? item.endKm ?? '',
+    startKm: item.startkm ?? item.startKm ?? '',
+    endDate: toDisplayDate(item.enddate || item.endDate),
+    podReceivedDate: toDisplayDate(item.podrecdate || item.podReceivedDate),
+    podSubmittedDate: toDisplayDate(item.podsubmitdate || item.podSubmittedDate),
+    podUpload: item.podupload || item.podUpload || null,
+    statusTimeline: buildStatusTimeline(item, mapTripStatusFromBackend(item.tripstatus || item.status)),
     expenses: item.expenses || [],
     advances: item.advances || [],
+    charges: item.charges || [],
   };
+}
+
+// The backend stores trip status as lowercase snake_case (started/completed/
+// pod_received/pod_submitted/settled), while the app UI uses title-case display
+// values (Started/Completed/POD Received/POD Submitted/Settled). These two
+// helpers translate between the two so status shows and updates correctly.
+const BACKEND_TO_DISPLAY_STATUS = {
+  started: 'Started',
+  completed: 'Completed',
+  pod_received: 'POD Received',
+  pod_submitted: 'POD Submitted',
+  settled: 'Settled',
+};
+
+const DISPLAY_TO_BACKEND_STATUS = {
+  Started: 'started',
+  Completed: 'completed',
+  'POD Received': 'pod_received',
+  'POD Submitted': 'pod_submitted',
+  Settled: 'settled',
+};
+
+function mapTripStatusFromBackend(status) {
+  if (!status) return 'Started';
+  const display = BACKEND_TO_DISPLAY_STATUS[String(status).toLowerCase()];
+  return display || String(status);
+}
+
+function mapTripStatusToBackend(status) {
+  if (!status) return 'started';
+  return DISPLAY_TO_BACKEND_STATUS[status] || String(status).toLowerCase();
 }
 
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -64,6 +98,37 @@ function toIsoDate(value) {
   const d = new Date(value);
   if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
   return String(value);
+}
+
+function toDisplayDate(value) {
+  if (!value) return null;
+  const iso = toIsoDate(value);
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return `${Number(m[3])} ${SHORT_MONTHS[Number(m[2]) - 1]} ${m[1]}`;
+}
+
+const STATUS_ORDER = ['Started', 'Completed', 'POD Received', 'POD Submitted', 'Settled'];
+
+function buildStatusTimeline(item, status) {
+  const currentIdx = STATUS_ORDER.indexOf(status);
+  const dates = {
+    Started: toDisplayDate(item.tripdate || item.tripDate) || 'Today',
+    Completed: toDisplayDate(item.enddate || item.endDate),
+    'POD Received': toDisplayDate(item.podrecdate || item.podReceivedDate),
+    'POD Submitted': toDisplayDate(item.podsubmitdate || item.podSubmittedDate),
+    Settled: toDisplayDate(item.settle_date || item.settleDate || item.paydate),
+  };
+  const podUrls = {
+    'POD Received': item.podupload || item.podUpload || null,
+    'POD Submitted': item.podsubmitdoc || item.podSubmitDoc || null,
+  };
+  return STATUS_ORDER.map((label, idx) => ({
+    status: label,
+    date: dates[label] || null,
+    completed: idx <= currentIdx,
+    podUrl: podUrls[label] || null,
+  }));
 }
 
 export const tripsApi = {
@@ -89,10 +154,18 @@ export const tripsApi = {
     try {
       const response = await apiClient.get(`/trips/${id}`);
       const raw = response.data?.data || response.data;
-      if (raw) {
-        return mapTripFromBackend(raw);
+      if (!raw) {
+        return null;
       }
-      return null;
+      // The trip detail endpoint doesn't include individual charge entries,
+      // so fetch them separately and attach for the Party tab Charges list.
+      let charges = [];
+      try {
+        charges = await chargesApi.getChargeEntries(id);
+      } catch {
+        // Charge entries fetch failed; trip still loads without the list.
+      }
+      return mapTripFromBackend({...raw, charges});
     } catch (error) {
       if (session?.accessToken) {
         throw error;
@@ -154,8 +227,26 @@ export const tripsApi = {
 
   updateTripStatus: async (id, data) => {
     const session = await authStorage.getSession();
+    const body = {
+      tripstatus: mapTripStatusToBackend(data.status),
+    };
+    // Status-specific fields the TripController persists on the trip row.
+    // endkm is optional — send null when omitted so the backend clears it.
+    if (data.status === 'Completed') {
+      body.endkm = data.endKm != null && data.endKm !== '' ? Number(data.endKm) : null;
+      body.enddate = toIsoDate(data.date);
+    }
+    if (data.status === 'POD Received') {
+      body.podrecdate = toIsoDate(data.date);
+      if (data.photoBase64) {
+        body.podupload = data.photoBase64;
+      }
+    }
+    if (data.status === 'POD Submitted') {
+      body.podsubmitdate = toIsoDate(data.date);
+    }
     try {
-      const response = await apiClient.post(`/trips/${id}/status`, data);
+      const response = await apiClient.patch(`/trips/${id}/status`, body);
       return response.data?.data || response.data;
     } catch (error) {
       if (session?.accessToken) {
@@ -195,13 +286,35 @@ export const tripsApi = {
 
   addExpense: async (id, data) => {
     const session = await authStorage.getSession();
+    // Expenses flagged "Add to Party Bill" are persisted as charge entries via
+    // the existing /chargeentries endpoint (there is no dedicated expense
+    // endpoint on this backend), so they survive trip refetches and appear in
+    // the Party tab's Charges list. Non-bill expenses have no backend table
+    // yet and are kept local for the session.
     try {
-      const response = await apiClient.post(`/trips/${id}/expenses`, data);
-      return response.data?.data || response.data;
-    } catch (error) {
-      if (session?.accessToken) {
-        throw error;
+      if (session?.accessToken && data.addToBill) {
+        const response = await apiClient.post('/chargeentries', {
+          tripid: id,
+          amount: Number(data.amount) || 0,
+          chargedate: toIsoDate(data.date),
+          chargetype: data.type || '',
+          billadjustment: 'add',
+          cid: data.cid != null ? Number(data.cid) : null,
+          remark: data.note || '',
+        });
+        return response.data?.data || response.data;
       }
+      // No session token → dev/mock mode: record through the in-memory mock so
+      // the expense stays visible for the session. Token mode with a non-bill
+      // expense is local-only too; useAddExpenseMutation.onSuccess appends it
+      // to the cached trip for display.
+      if (!session?.accessToken) {
+        return mockAddExpense({id, ...data});
+      }
+      return {id, ...data};
+    } catch (error) {
+      // Persistence unavailable (network/backend): keep the add local so the
+      // trip stays usable; onSuccess already appends to the cached trip.
       return {id, ...data};
     }
   },

@@ -69,7 +69,7 @@ export const mockCreateTrip = async tripData => {
   return newTrip;
 };
 
-export const mockUpdateTripStatus = async ({id, status, podUrl}) => {
+export const mockUpdateTripStatus = async ({id, status, date, endKm, photoBase64, podUrl}) => {
   await delay(350);
   const index = mockTrips.findIndex(t => t.id === id);
   if (index === -1) throw new Error('Trip not found');
@@ -80,11 +80,12 @@ export const mockUpdateTripStatus = async ({id, status, podUrl}) => {
 
   const updatedTimeline = trip.statusTimeline.map((item, idx) => {
     if (idx <= targetIdx) {
+      const attachPod = item.status === 'POD Received' && (podUrl || photoBase64);
       return {
         ...item,
         completed: true,
-        date: item.date || '25 Aug 2026',
-        podUrl: item.status.includes('POD') && podUrl ? podUrl : item.podUrl,
+        date: item.date || date || '25 Aug 2026',
+        podUrl: attachPod ? (podUrl || photoBase64) : item.podUrl,
       };
     }
     return item;
@@ -94,6 +95,23 @@ export const mockUpdateTripStatus = async ({id, status, podUrl}) => {
     ...trip,
     status,
     statusTimeline: updatedTimeline,
+    ...(status === 'Completed'
+      ? {
+          endKm: endKm != null && endKm !== '' ? endKm : trip.endKm,
+          endDate: date || trip.endDate,
+        }
+      : {}),
+    ...(status === 'POD Received'
+      ? {
+          podReceivedDate: date || trip.podReceivedDate,
+          podUpload: photoBase64 || trip.podUpload,
+        }
+      : {}),
+    ...(status === 'POD Submitted'
+      ? {
+          podSubmittedDate: date || trip.podSubmittedDate,
+        }
+      : {}),
   };
 
   mockTrips[index] = updatedTrip;
@@ -174,6 +192,49 @@ export const mockAddCharge = async ({
     ...trip,
     charges: updatedCharges,
     chargesAmount: netCharges,
+    pendingBalance,
+  };
+
+  mockTrips[index] = updatedTrip;
+  return updatedTrip;
+};
+
+export const mockAddExpense = async ({id, type, amount, date, paymentMode, addToBill = false, note, photoUri}) => {
+  await delay(350);
+  const index = mockTrips.findIndex(t => t.id === id);
+  if (index === -1) throw new Error('Trip not found');
+
+  const trip = mockTrips[index];
+  const amt = Number(amount) || 0;
+  const newExpense = {
+    id: `EXP-${Date.now()}`,
+    type: type || 'Expense',
+    amount: amt,
+    date: date || '25 Aug 2026',
+    paymentMode: paymentMode || 'Cash',
+    addToBill,
+    note: note || '',
+    photoUri: photoUri || null,
+  };
+
+  const updatedExpenses = [...(trip.expenses || []), newExpense];
+  // Expenses flagged "Add to Party Bill" increase the party charges total,
+  // so they also show up in the Party tab's Charges line items and feed the
+  // pending balance.
+  const billAdjust = addToBill ? amt : 0;
+  const newChargesAmount = (Number(trip.chargesAmount) || 0) + billAdjust;
+  const pendingBalance = Math.max(
+    0,
+    Number(trip.freightAmount) +
+      newChargesAmount -
+      (Number(trip.advanceAmount) || 0) -
+      (Number(trip.paymentsAmount) || 0),
+  );
+
+  const updatedTrip = {
+    ...trip,
+    expenses: updatedExpenses,
+    chargesAmount: newChargesAmount,
     pendingBalance,
   };
 

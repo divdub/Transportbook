@@ -73,12 +73,12 @@ export default function SplashScreen({navigation}) {
         <View style={styles.brandHeader}>
           <View style={styles.logoBadge}>
             <AppText variant="heading" style={styles.logoText}>
-              TB
+              VB
             </AppText>
           </View>
           <View style={styles.titleBlock}>
             <AppText variant="title" style={styles.title}>
-              TransportBook
+              VahanBook
             </AppText>
             <AppText variant="body" style={styles.subtitle}>
               Fleet, Trips & Khata — Simplified

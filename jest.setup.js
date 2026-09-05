@@ -80,6 +80,15 @@ jest.mock('lottie-react-native', () => 'LottieView', {
 });
 
 jest.mock(
+  'react-native-image-picker',
+  () => ({
+    launchCamera: jest.fn(),
+    launchImageLibrary: jest.fn(),
+  }),
+  {virtual: true},
+);
+
+jest.mock(
   'react-native-worklets',
   () => {
     try {

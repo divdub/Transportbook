@@ -6,9 +6,18 @@ export const authApi = {
       login: credentials.login || credentials.email || credentials.mobile,
       password: credentials.password,
     };
-    const response = await apiClient.post('/login', payload);
+    console.log('[API:login] POSTING to', apiClient.defaults.baseURL, 'payload =', JSON.stringify(payload));
+    let response;
+    try {
+      response = await apiClient.post('/login', payload);
+    } catch (error) {
+      console.log('[API:login] REQUEST FAILED. error =', JSON.stringify(error, null, 2));
+      throw error;
+    }
+    console.log('[API:login] RESPONSE status =', response.status, '| body =', JSON.stringify(response.data));
     if (response.data?.status === false) {
       const firstErr = response.data.errors ? Object.values(response.data.errors)[0]?.[0] : null;
+      console.log('[API:login] backend returned status:false. firstErr =', firstErr);
       throw new Error(firstErr || response.data.message || 'Login failed');
     }
     return response.data;

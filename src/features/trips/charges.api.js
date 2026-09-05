@@ -29,6 +29,28 @@ export const chargesApi = {
     }
   },
 
+  async getChargeEntries(tripId) {
+    const session = await authStorage.getSession();
+    try {
+      const response = await apiClient.get('/chargeentries', {params: {tripid: tripId}});
+      const data = response.data?.data || response.data;
+      if (Array.isArray(data)) {
+        return data.map(entry => ({
+          id: String(entry.chargeid ?? entry.id ?? ''),
+          amount: Number(entry.amount) || 0,
+          billAdjustment: entry.billadjustment || 'add',
+          chargeType: entry.chargetype || '',
+          date: entry.chargedate || '',
+          note: entry.remark || '',
+          cid: entry.cid != null ? Number(entry.cid) : null,
+        }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
   async createCharge(chargename) {
     const session = await authStorage.getSession();
     const body = {chargename: String(chargename || '')};

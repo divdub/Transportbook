@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {AppButton} from '../../../components/common/AppButton';
 import {AppScreen} from '../../../components/common/AppScreen';
 import {AppText} from '../../../components/common/AppText';
+import {TripStatusSheet} from '../sheets/TripStatusSheet';
 import {useTripDetailsQuery} from '../hooks/useTripDetailsQuery';
 import {useUpdateTripStatusMutation} from '../hooks/useUpdateTripStatusMutation';
 import {colors, radius, spacing} from '../../../theme';
@@ -25,6 +26,7 @@ export default function TripProgressScreen() {
 
   const {data: trip, isLoading, isError, refetch} = useTripDetailsQuery(tripId || 'TRIP-1001');
   const {mutateAsync: updateStatus, isPending} = useUpdateTripStatusMutation();
+  const [statusSheet, setStatusSheet] = useState({visible: false, nextStatus: null});
 
   if (isLoading) {
     return (
@@ -71,34 +73,35 @@ export default function TripProgressScreen() {
 
   const handleAdvanceStatus = async () => {
     if (!nextAction.nextStatus) return;
-    await updateStatus({id: trip.id, status: nextAction.nextStatus});
+    const next = nextAction.nextStatus;
+    // Completed / POD Received / POD Submitted collect extra data (end km,
+    // dates, optional POD photo) before calling the backend. Settled simply
+    // advances the lifecycle.
+    if (next === 'Completed' || next === 'POD Received' || next === 'POD Submitted') {
+      setStatusSheet({visible: true, nextStatus: next});
+      return;
+    }
+    await handleStatusConfirm({status: next, date: null, endKm: '', photoBase64: null});
+  };
+
+  const handleStatusConfirm = async payload => {
+    setStatusSheet(prev => ({...prev, visible: false}));
+    try {
+      await updateStatus({id: trip.id, ...payload});
+    } catch (error) {
+      Alert.alert(
+        'Status not updated',
+        error?.message || 'Could not update the trip status. Please try again.',
+      );
+    }
   };
 
   const handleAttachPod = stepName => {
     Alert.alert(
       'Attach POD / Document',
-      `Upload document or photo for ${stepName}`,
-      [
-        {
-          text: 'Take Photo',
-          onPress: () =>
-            updateStatus({
-              id: trip.id,
-              status: trip.status,
-              podUrl: 'https://placehold.co/400x600/png?text=POD+Uploaded',
-            }),
-        },
-        {
-          text: 'Choose from Gallery',
-          onPress: () =>
-            updateStatus({
-              id: trip.id,
-              status: trip.status,
-              podUrl: 'https://placehold.co/400x600/png?text=POD+Uploaded',
-            }),
-        },
-        {text: 'Cancel', style: 'cancel'},
-      ],
+      `Attach the ${stepName} photo when marking the next status. Use the "${
+        nextAction.label
+      }" button below — you can pick a photo from the camera or gallery, and it is sent to the backend with the status update.`,
     );
   };
 
@@ -289,6 +292,15 @@ export default function TripProgressScreen() {
           style={styles.actionBtn}
         />
       </View>
+
+      {/* Status Advance Sheet */}
+      <TripStatusSheet
+        visible={statusSheet.visible}
+        status={statusSheet.nextStatus}
+        onConfirm={handleStatusConfirm}
+        onClose={() => setStatusSheet(prev => ({...prev, visible: false}))}
+        isPending={isPending}
+      />
     </AppScreen>
   );
 }
