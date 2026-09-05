@@ -56,17 +56,13 @@ class TripController extends Controller
             'originid'            => 'nullable|integer',
             'destinationid'       => 'nullable|integer',
              'partybillingtype'    => 'nullable|string|max:255',
-
-            'rate'                => 'nullable|numeric',
+             'rate'                => 'nullable|numeric',
             'wt'                  => 'nullable|numeric',
             'freightamt'          => 'nullable|numeric',
-
-            'supplierbillingtype' => 'nullable|string|max:255',
-
+             'supplierbillingtype' => 'nullable|string|max:255',
             'sup_freightamt'      => 'nullable|numeric',
             'sup_rate'            => 'nullable|numeric',
             'supwt'               => 'nullable|numeric',
-
             'material'            => 'nullable|string|max:255',
             'remark'              => 'nullable|string',
         ]);
@@ -79,7 +75,24 @@ class TripController extends Controller
             ], 422);
         }
 
+$referenceNo = $request->referenceno;
 
+if (!$referenceNo) {
+
+    $lastReference = Trip::where('companyid', $user->companyid)
+        ->whereNotNull('referenceno')
+        ->orderBy('tripid', 'desc')
+        ->first();
+
+    if ($lastReference) {
+        $lastNumber = (int) substr($lastReference->referenceno, 3);
+        $nextNumber = $lastNumber + 1;
+    } else {
+        $nextNumber = 1;
+    }
+
+    $referenceNo = 'REF' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+}
         $lastTrip = Trip::where('companyid',$user->companyid)->orderBy('tripid', 'desc')->first();
 
         if ($lastTrip) {
@@ -95,7 +108,6 @@ class TripController extends Controller
         $trip = Trip::create([
             'tripdate'            => $request->tripdate,
             'tripno'              => $tripno,
-
             'truckid'             => $request->truckid,
             'partyid'             => $request->partyid,
             'supplierid'          => $request->supplierid,
@@ -120,6 +132,7 @@ class TripController extends Controller
             'remark'              => $request->remark,
             'startkm'              => $request->startkm,
             'tripstatus'          => 'started' ,
+            'referenceno'        => $referenceno ,
              'companyid' => $user->companyid,
              'userid' => $user->userid,
         ]);

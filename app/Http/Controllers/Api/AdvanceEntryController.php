@@ -42,6 +42,7 @@ class AdvanceEntryController extends Controller
             'remark' => $request->remark,
             'advancetype' => $request->advancetype,
             'companyid' => $user->companyid,
+            'userid' => $user->userid,
         ]);
 
 

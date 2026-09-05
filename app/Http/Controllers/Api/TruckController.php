@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Truck;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class TruckController extends Controller
 {
@@ -30,8 +31,17 @@ class TruckController extends Controller
      */
     public function store(Request $request)
     {
+           $user = $request->user();
         $validator = Validator::make($request->all(), [
-            'trucknumber' => 'required|string|max:255|unique:trucks,trucknumber',
+           'trucknumber' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('trucks', 'trucknumber')
+                    ->where(function ($query) use ($user) {
+                        return $query->where('companyid', $user->companyid);
+                    }),
+            ], 
         ]);
 
         if ($validator->fails()) {
@@ -48,6 +58,7 @@ class TruckController extends Controller
             'ownership'   => $request->ownership,
             'supplierid'  => $request->supplierid,
             'status'      => $request->status ?? 1,
+            'companyid' => $user->companyid,
         ]);
 
         return response()->json([
